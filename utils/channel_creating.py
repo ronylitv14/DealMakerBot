@@ -12,26 +12,24 @@ from keyboards.inline_keyboards import create_group_message_keyboard_telethon
 from telethon.types import Updates, ChatBannedRights
 from handlers_chatbot.utils.redis_interaction import deactivate_session
 
+from database.models import TaskStatus, GroupMessage
+from database.crud import get_group_message, save_chat_data, update_group_title
 from dotenv import load_dotenv
 
-load_dotenv(".env")
-
-# TELEGRAM_USER = os.getenv("TELEGRAM_USER")
-# TELEGRAM_APP_API_ID = int(os.getenv("TELEGRAM_APP_API_ID")) or None
-# TELEGRAM_APP_API_HASH = os.getenv("TELEGRAM_APP_API_HASH")
-
+load_dotenv()
 
 TELEGRAM_USER = ["admin.session", "admin2.session", "admin3.session"]
-TELEGRAM_APP_API_ID = 20863933
-TELEGRAM_APP_API_HASH = "1e45a28a776a2a371cf58834214cff31"
+TELEGRAM_APP_API_ID = int(os.getenv("TELEGRAM_APP_API_ID"))
+TELEGRAM_APP_API_HASH = os.getenv("TELEGRAM_APP_API_HASH")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-BOT_URL = "https://t.me/newdopomogatestbot"
-CHAT_BOT_URL = "https://t.me/dealmakerchatbot"
+BOT_URL = os.getenv("BOT_URL")
+CHAT_BOT_URL = os.getenv("CHAT_BOT_URL")
+
 TG_GROUPNAME = os.getenv("TG_GROUP_NAME")
 
-if not any((TELEGRAM_USER, TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH)):
+if not all((TELEGRAM_USER, TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH)):
     print("Did not specify TELETHON params")
     sys.exit(1)
 
@@ -73,9 +71,6 @@ class AdminRights:
     def get_user_rights(self):
         return {name: value for name, value in self.params.items()}
 
-
-from database.models import TaskStatus, GroupMessage
-from database.crud import get_group_message, save_chat_data, update_group_title
 
 MSG_STATUS_EMOJI = {
     TaskStatus.executing: "🟠",

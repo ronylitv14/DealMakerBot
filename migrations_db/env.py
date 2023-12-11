@@ -6,6 +6,9 @@ from sqlalchemy import pool
 
 from alembic import context
 from database import models
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -26,6 +29,12 @@ target_metadata = models.Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
 
 
 def run_migrations_offline() -> None:
@@ -54,7 +63,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online():
     # Add the following line to retrieve the URL from an environment variable
-    sqlalchemy_url = f"postgresql+psycopg2://postgres:postgres@localhost:5432/dealmakerbot"
+    sqlalchemy_url = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
@@ -64,9 +73,9 @@ def run_migrations_online():
 
     with connectable.connect() as connection:
         context.configure(
-                connection=connection,
-                target_metadata=target_metadata
-                )
+            connection=connection,
+            target_metadata=target_metadata
+        )
 
         with context.begin_transaction():
             context.run_migrations()

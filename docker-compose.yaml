@@ -1,0 +1,38 @@
+version: "3"
+services:
+  aiogram-app:
+    build: .
+    command: python main_webhook.py
+    env_file:
+      - .env
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--requirepass", "", "--databases", "10"]
+    volumes:
+      - redis_data:/data
+
+  postgres:
+    image: "postgres"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: your_db_name
+      POSTGRES_USER: your_db_user
+      POSTGRES_PASSWORD:
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  postgres_data:
+  redis_data:
+
