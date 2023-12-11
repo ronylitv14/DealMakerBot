@@ -1,8 +1,8 @@
-"""Create db
+"""Creating new db
 
-Revision ID: adc74d2bab2d
+Revision ID: 677d19f819f9
 Revises: 
-Create Date: 2023-11-28 20:05:42.917262
+Create Date: 2023-12-11 18:33:41.369949
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'adc74d2bab2d'
+revision = '677d19f819f9'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -90,6 +90,7 @@ def upgrade() -> None:
     sa.Column('request_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('amount', sa.DECIMAL(precision=10, scale=2), nullable=False),
+    sa.Column('commission', sa.DECIMAL(precision=10, scale=2), nullable=False),
     sa.Column('request_date', sa.TIMESTAMP(), nullable=False),
     sa.Column('status', sa.Enum('pending', 'processed', 'rejected', name='withdrawalstatus'), nullable=False),
     sa.Column('payment_method', sa.String(), nullable=False),
@@ -102,7 +103,7 @@ def upgrade() -> None:
     )
     op.create_table('tasks',
     sa.Column('task_id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('executor_id', sa.Integer(), nullable=True),
+    sa.Column('executor_id', sa.BIGINT(), nullable=True),
     sa.Column('client_id', sa.BIGINT(), nullable=True),
     sa.Column('status', sa.Enum('active', 'executing', 'done', name='taskstatus'), nullable=False),
     sa.Column('price', sa.String(), nullable=False),
@@ -122,10 +123,13 @@ def upgrade() -> None:
     op.create_table('chats',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('chat_id', sa.BIGINT(), nullable=False),
+    sa.Column('supergroup_id', sa.BIGINT(), nullable=True),
     sa.Column('task_id', sa.Integer(), nullable=True),
     sa.Column('executor_id', sa.BIGINT(), nullable=False),
     sa.Column('client_id', sa.BIGINT(), nullable=False),
     sa.Column('group_name', sa.String(), nullable=False),
+    sa.Column('chat_type', sa.Enum('SENDER', 'PRIVATE', 'GROUP', 'SUPERGROUP', 'CHANNEL', name='chattype'), nullable=False),
+    sa.Column('chat_admin', sa.String(), nullable=False),
     sa.Column('date_created', sa.TIMESTAMP(), nullable=True),
     sa.Column('participants_count', sa.Integer(), nullable=True),
     sa.Column('invite_link', sa.String(), nullable=True),
@@ -134,14 +138,15 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['task_id'], ['tasks.task_id'], ),
     sa.PrimaryKeyConstraint('id', 'chat_id'),
     sa.UniqueConstraint('chat_id'),
-    sa.UniqueConstraint('client_id'),
-    sa.UniqueConstraint('executor_id'),
-    sa.UniqueConstraint('id')
+    sa.UniqueConstraint('chat_id', 'task_id', 'executor_id', 'client_id', name='unique_combination_chat'),
+    sa.UniqueConstraint('id'),
+    sa.UniqueConstraint('supergroup_id')
     )
     op.create_table('group_messages',
     sa.Column('group_message_id', sa.Integer(), nullable=False),
     sa.Column('task_id', sa.Integer(), nullable=False),
     sa.Column('message_text', sa.String(), nullable=False),
+    sa.Column('has_files', sa.Boolean(), nullable=False),
     sa.Column('date_added', sa.TIMESTAMP(), nullable=True),
     sa.ForeignKeyConstraint(['task_id'], ['tasks.task_id'], ),
     sa.PrimaryKeyConstraint('group_message_id'),
@@ -163,7 +168,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['task_id'], ['tasks.task_id'], ),
     sa.PrimaryKeyConstraint('transaction_id', 'invoice_id')
     )
-
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
     # ### end Alembic commands ###
 
