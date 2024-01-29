@@ -30,7 +30,7 @@ class RequestParams(BaseModel):
 class BaseAPI(ABC):
     def __init__(self, base_url: str = DB_API_URL):
         self.base_url = base_url
-        self.headers = {"token": DB_API_TOKEN}
+        # self.headers = {"token": DB_API_TOKEN}
         self.params: Optional[RequestParams] = None
         self.response_model = None
 
@@ -47,6 +47,22 @@ class BaseAPI(ABC):
                 return response_model(**resp.json())
             return resp
 
-    def construct_params(self, method: HttpMethod, url: str, json: Optional[dict] = None):
-        self.params = RequestParams(method=method, url=url, json=json, headers=self.headers)
+    def _construct_params(self, method: HttpMethod, url: str, json: Optional[dict] = None):
+        self.params = RequestParams(method=method, url=url, json=json)
         return self
+
+
+class APIListObject(BaseModel):
+    list_values: list
+
+    def __getitem__(self, ind):
+        if not self.list_values or ind > len(self.list_values):
+            raise AttributeError("No item is available")
+        return self.list_values[ind]
+
+    def __iter__(self):
+        for obj in self.list_values:
+            yield obj
+
+    def __len__(self):
+        return len(self.list_values)
