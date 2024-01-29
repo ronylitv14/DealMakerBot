@@ -8,25 +8,25 @@ from aiogram.dispatcher.router import Router
 from aiogram_dialog.dialog import DialogManager
 
 from handlers.utils.command_utils import show_menu
-from database.crud import get_user_auth, save_chat_data, update_group_title, get_task
-from database.models import Task, PropositionBy
 
-from .states_handler import ClientDialog
+from database_api.components.tasks import Tasks, TaskModel, PropositionBy, TaskStatus
+
+from utils.channel_creating import TELEGRAM_USER
+from utils.channel_creating import creating_chat_for_users
+
+from handlers.states_handler import ClientDialog
 from keyboards.clients import create_keyboard_client
 from handlers.utils.start_action_handler import ProcessOrder
 from aiogram.methods.delete_message import DeleteMessage
-from aiogram_dialog.api.exceptions import UnknownState, UnknownIntent, OutdatedIntent
-from middlewares.auth_middelware import InnerAuthMiddleware
 from utils.instructions import get_client_instructions
-from utils.channel_creating import AdminRights, add_admin_rights, create_channel_with_users, \
-    get_chat_invite_link, BOT_URL, send_bot_single_inline_message, CHAT_BOT_URL
+from handlers.utils.unused_chats_utils import check_existence_and_create_new_deal
 
 menu_router = Router()
 menu_router.message.filter(F.chat.type.in_({ChatType.PRIVATE}))
 
 
 @menu_router.message(Command("menu"))
-async def cmd_menu(message: types.Message, state: FSMContext):
+async def cmd_menu(message: types.Message, state: FSMContext, dialog_manager: DialogManager):
     await show_menu(message, state)
 
 
@@ -60,7 +60,8 @@ async def handle_taking_order(callback: types.CallbackQuery, bot: Bot, dialog_ma
     processor = ProcessOrder(
         message=callback.message,
         task_id=int(task_id),
-        dialog_manager=dialog_manager
+        dialog_manager=dialog_manager,
+        callback=callback
     )
 
     await processor.process_action()
@@ -73,15 +74,28 @@ async def handle_taking_order(callback: types.CallbackQuery, bot: Bot, dialog_ma
     await callback.answer()
 
 
-from utils.channel_creating import TELEGRAM_USER, change_chat_title
-from utils.channel_creating import creating_chat_for_users
-
-
 @menu_router.callback_query(
     F.data.contains("create-chat")
 )
 async def create_chat(callback: types.CallbackQuery, bot: Bot, dialog_manager: DialogManager):
     action, client_id, executor_id, task_id, executor_username = callback.data.split("|")
+
+    task: TaskModel = await Tasks().get_task_data(int(task_id)).do_request()
+    if task.proposed_by != PropositionBy.public:
+        await Tasks().update_task_status(task.task_id, TaskStatus.executing)
+
+    try:
+        return await check_existence_and_create_new_deal(
+            client_id=int(client_id),
+            task_id=int(task_id),
+            executor_id=int(executor_id),
+            callback=callback,
+            bot=bot
+        )
+
+    except ValueError as err:
+        print(err)
+        print("There are no free chats")
 
     chat_admin = random.choice(TELEGRAM_USER)
 
@@ -94,97 +108,35 @@ async def create_chat(callback: types.CallbackQuery, bot: Bot, dialog_manager: D
         bot=bot
     )
 
-    # group_name = f"Замовлення №{task_id}"
-    #
-    # chat_id = await create_channel_with_users(
-    #     group_name,
-    #     chat_admin,
-    #     BOT_URL,
-    #     CHAT_BOT_URL
-    # )
-    #
-    # await add_admin_rights(
-    #     chat_id=chat_id,
-    #     user=BOT_URL,
-    #     is_admin=True,
-    #     admin_name=chat_admin
-    # )
-    #
-    # await add_admin_rights(
-    #     chat_id=chat_id,
-    #     user=CHAT_BOT_URL,
-    #     is_admin=True,
-    #     admin_name=chat_admin
-    # )
-    #
-    # link = await get_chat_invite_link(chat_id=chat_id, admin_name=chat_admin)
-    #
-    # new_chat = await save_chat_data(
-    #     chat_id=chat_id,
-    #     invite_link=link,
-    #     participants_count=4,
-    #     group_name=group_name,
-    #     task_id=int(task_id),
-    #     executor_id=int(executor_id),
-    #     client_id=int(client_id),
-    #     chat_admin=chat_admin
-    # )
-    #
-    # if not new_chat:
-    #     return await callback.answer("Помилка при створенні чату!")
-    #
-    # await change_chat_title(
-    #     chat_id=new_chat.chat_id,
-    #     chat_admin=chat_admin,
-    #     chat_title=f"Угода №{new_chat.id}"
-    # )
-    #
-    # await send_bot_single_inline_message(
-    #     chat_id=int(client_id),
-    #     msg_text="За цим посиланням ви можете перейти до діалогу з виконавцем",
-    #     btn_text="Перейти до чату",
-    #     url=f"https://t.me/dealmakerchatbot?start=chat-{new_chat.id}",
-    #     bot=bot
-    # )
-    #
-    # await send_bot_single_inline_message(
-    #     chat_id=int(executor_id),
-    #     msg_text="За цим посиланням ви можете перейти до діалогу з клієнтом",
-    #     btn_text="Перейти до чату",
-    #     url=link,
-    #     bot=bot
-    # )
-    #
-    # await callback.answer()
-    #
-    # await bot(
-    #     DeleteMessage(
-    #         message_id=int(callback.message.message_id),
-    #         chat_id=callback.message.chat.id
-    #     )
-    # )
-    #
-    # await update_group_title(
-    #     db_chat_id=new_chat.id,
-    #     group_name=f"Угода №{new_chat.id}"
-    # )
-
 
 @menu_router.callback_query(
     F.data.startswith("deal_minus")
 )
 async def reject_proposed_deal(callback: types.CallbackQuery, bot: Bot, dialog_manager: DialogManager):
-    task_id, client_id, executor_id = callback.data.split("|")
+    action, task_id, client_id, executor_id = callback.data.split("|")
 
-    task: Task = await get_task(int(task_id))
+    task: TaskModel = await Tasks().get_task_data(int(task_id)).do_request()
 
     if task.proposed_by == PropositionBy.client:
         await bot.send_message(
-            chat_id=int(executor_id),
-            text="Виконавець відмовився від вашого замовлення! "
+            chat_id=int(client_id),
+            text=f"Виконавець відмовився від вашого замовлення!\n\nІнформаця по замовленню:\n\n"
+                 f"{task.create_task_summary()}"
         )
     elif task.proposed_by == PropositionBy.executor:
         await bot.send_message(
-            chat_id=int(client_id),
-            text="Клієнт відмовився від вашої пропозиції!"
+            chat_id=int(executor_id),
+            text=f"Клієнт відмовився від вашої пропозиції!\n\nІнформаця по замовленню:\n\n"
+                 f"{task.create_task_summary()}"
         )
+
+    await Tasks().update_task_status(
+        task_id=task.task_id,
+        new_task_status=TaskStatus.done
+    ).do_request()
+
+    await callback.answer()
+    await bot.delete_message(
+        chat_id=callback.from_user.id,
+        message_id=callback.message.message_id
+    )
