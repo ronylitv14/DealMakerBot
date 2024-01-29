@@ -1,18 +1,14 @@
 import os
 import sys
 
-from dotenv import load_dotenv
 import logging
-import sys
-from os import getenv
+from dotenv import load_dotenv
+
 from aiogram.fsm.storage.redis import RedisStorage
 
 from aiohttp import web
-from aiogram import Bot, Dispatcher, Router, types
+from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
-from aiogram.types import Message
-from aiogram.utils.markdown import hbold
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from handlers.users_joining_handler import joining_users_router
@@ -37,7 +33,7 @@ if not BOT_TOKEN or not CHAT_BOT_TOKEN:
 WEB_SERVER_HOST = os.getenv("WEB_SERVER_HOST")
 WEB_SERVER_PORT = os.getenv("WEB_SERVER_PORT")
 
-BASE_WEBHOOK_URL = os.getenv("BASE_WEBHOOK_URL")
+BASE_WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 # Bot 1 settings
 WEBHOOK_PATH_BOT = "/webhook-bot"
@@ -56,7 +52,7 @@ async def on_startup_chatbot(bot: Bot):
     await bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH_CHATBOT}", secret_token=WEBHOOK_SECRET_CHATBOT)
 
 
-def main():
+async def main():
     redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
     if REDIS_PASSWORD:
         redis_url = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
@@ -79,8 +75,8 @@ def main():
         types.BotCommand(command="pay", description="Оплата замовлення")
     ]
 
-    bot_deal.set_my_commands(types_command)
-    bot_chat.set_my_commands(chat_types_command)
+    await bot_deal.set_my_commands(types_command)
+    await bot_chat.set_my_commands(chat_types_command)
 
     dp_deal.include_routers(
         main_handlers.main_router,
@@ -97,13 +93,18 @@ def main():
 
     app = web.Application()
 
-    SimpleRequestHandler(dispatcher=dp_deal, bot=bot_deal, secret_token=WEBHOOK_SECRET_BOT).register(app,
-                                                                                                     path=WEBHOOK_PATH_BOT)
-    SimpleRequestHandler(dispatcher=dp_chatbot, bot=bot_chat, secret_token=WEBHOOK_SECRET_CHATBOT).register(app,
-                                                                                                            path=WEBHOOK_PATH_CHATBOT)
+    SimpleRequestHandler(
+        dispatcher=dp_deal, bot=bot_deal, secret_token=WEBHOOK_SECRET_BOT
+    ).register(app, path=WEBHOOK_PATH_BOT)
+
+    SimpleRequestHandler(
+        dispatcher=dp_chatbot, bot=bot_chat, secret_token=WEBHOOK_SECRET_CHATBOT
+    ).register(app, path=WEBHOOK_PATH_CHATBOT)
 
     setup_application(app, dp_deal, bot=bot_deal)
     setup_application(app, dp_chatbot, bot=bot_chat)
+
+    web.run_app(app, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
 
 
 if __name__ == "__main__":
