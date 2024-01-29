@@ -4,7 +4,9 @@ from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Cancel, Back, Row
 
 from handlers.deals_executor.dialog_states import DealsExecutor
-from handlers.deals_executor.dialog_widgets import TelegramBtns, TelegramInputs
+from handlers.deals_executor.dialog_widgets import TelegramInputs
+
+from database_api.components.users import UserResponseList
 
 
 async def get_user_data(**kwargs):
@@ -13,8 +15,9 @@ async def get_user_data(**kwargs):
 
     res = []
 
-    for ind, user in enumerate(users):
-        res.append((user, ind))
+    if isinstance(users, UserResponseList):
+        for ind, user in enumerate(users):
+            res.append((user, ind))
 
     return {
         "users": res if res else [("Немає відповідних даних", -1)]

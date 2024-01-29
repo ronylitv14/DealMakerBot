@@ -8,8 +8,9 @@ from aiogram_dialog.dialog import DialogManager
 from aiogram.enums import ContentType
 from aiogram.types import CallbackQuery
 
-from database.models import User, TaskStatus, PropositionBy
-from database.crud import save_task_to_db
+from database_api.components.users import UserResponse
+from database_api.components.tasks import Tasks, PropositionBy, TaskStatus
+
 from handlers.deals_executor.button_callbacks import InputCallbacks
 
 
@@ -19,9 +20,9 @@ async def on_client_selected(callback: CallbackQuery, widget: Any,
         return await callback.answer(text="Не знайдено таких користувачів! Поверніться назад і спробуйте ще раз!")
 
     users = manager.dialog_data.get("users")
-    user: User = users[int(item_id)]
+    user: UserResponse = users[int(item_id)]
 
-    await save_task_to_db(
+    await Tasks().save_task_data(
         client_id=user.telegram_id,
         executor_id=callback.from_user.id,
         status=TaskStatus.active,
@@ -30,11 +31,13 @@ async def on_client_selected(callback: CallbackQuery, widget: Any,
         subjects=["Інше"],
         work_type=["Інше"],
         price="Договірна"
-    )
+    ).do_request()
 
     await callback.bot.send_message(
         chat_id=user.telegram_id,
-        text="<b>У вас є нова угода!</b> Зайдіть у розділ 'Угоди' і перегляньте запропоновані угоди!",
+        text="🌟 <b>У вас є нові запропоновані угоди!</b> 🌟"
+                 "Перевірте їх у розділі <b>‘Угоди’</b> тільки у меню <i>клієнта</i>. "
+                 "Не пропустіть цю можливість!",
         parse_mode="HTML"
     )
 
@@ -43,6 +46,7 @@ async def on_client_selected(callback: CallbackQuery, widget: Any,
     await callback.message.answer(
         text="Угода надіслана!"
     )
+
 
 class TelegramInputs:
     input_username = MessageInput(
