@@ -3,7 +3,6 @@ from aiogram.fsm.state import State, StatesGroup
 
 class DealsGroup(StatesGroup):
     main_deals = State()
-
     watch_deals = State()
 
 

@@ -1,13 +1,12 @@
 import operator
 from typing import Any
 
-from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardBuilder, InlineKeyboardMarkup
 from aiogram.types import CallbackQuery
-from aiogram_dialog.widgets.kbd import Button, Select, Multiselect, Back, ScrollingGroup
+from aiogram_dialog.widgets.kbd import Button, Select, Back, ScrollingGroup
 from aiogram_dialog.widgets.text import Format, Const
 from aiogram_dialog.dialog import DialogManager
 
-from database.models import Task
+from database_api.components.tasks import TaskModel
 from handlers.deals.button_callbacks import ButtonCallbacks
 from handlers.utils.start_action_handler import create_files_reply
 from keyboards.inline_keyboards import create_accepting_deal
@@ -34,13 +33,13 @@ async def on_deal_selected(callback: CallbackQuery, widget: Any,
 
     deals = manager.dialog_data.get("returned_deals")
 
-    selected_deal: Task = deals[int(item_id)]
+    selected_deal: TaskModel = deals[int(item_id)]
     subjects = ", ".join(selected_deal.subjects)
     work_type = ", ".join(selected_deal.work_type)
 
     await callback.message.answer(
         text="Ось дані щодо запропонованої угоди:\n\n"
-             f"Номер замовлення №1: {selected_deal.task_id}\n"
+             f"Номер замовлення: {selected_deal.task_id}\n"
              f"Теги до завдання:<b>{subjects}</b>\n"
              f"Вид завдання: <b>{work_type}</b>\n"
              f"Ціна: <b>{selected_deal.price}</b>\n"
@@ -49,7 +48,6 @@ async def on_deal_selected(callback: CallbackQuery, widget: Any,
     )
 
     if selected_deal.files:
-
         await create_files_reply(
             files=selected_deal.files,
             files_type=selected_deal.files_type,
