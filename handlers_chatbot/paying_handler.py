@@ -2,67 +2,49 @@ import decimal
 
 from aiogram import F, types, Bot
 from aiogram.enums import ChatType
-from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
-from aiogram.filters.command import Command, CommandObject
+from aiogram.filters.command import Command
 from aiogram.dispatcher.router import Router
 from aiogram_dialog.dialog import DialogManager
 from aiogram_dialog.api.entities import StartMode
 
 from handlers_chatbot.paying_order.window_dialogs import create_offer_dialog
-from handlers_chatbot.paying_order.window_states import PriceOffer, PriceOfferAccept
-from handlers.utils.start_action_handler import change_message_status
-from database.crud import get_chat_object, create_transaction_data, get_task, check_successful_payment, \
-    accept_done_offer
-from database.models import Chat, TaskStatus, Task
-from utils.dialog_texts import paying_text_accepted
-from utils.channel_creating import edit_telegram_message
-from sqlalchemy.exc import IntegrityError
+from handlers_chatbot.paying_order.window_states import PriceOffer
+from handlers_chatbot.utils.sending_review_proposal import send_accept_offer_msg, send_review_proposal_to_participants
+
+from utils.channel_creating import edit_telegram_message, send_bot_message
+
+from database_api.components.chats import Chats, ChatModel
+from database_api.components.tasks import Tasks, TaskStatus, TaskModel, PropositionBy
+from database_api.components.transactions import TransactionModel
+from database_api.components.payments import Payments, SuccessModel
 
 paying_router = Router()
 
-paying_router.message.filter(F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP, ChatType.CHANNEL}))
+paying_router.message.filter(F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP, ChatType.PRIVATE}))
 paying_router.include_routers(*create_offer_dialog())
-
-
-def create_accept_offer_msg(task_id: int, transaction_id: int, amount: int, receiver_id: int):
-    builder = InlineKeyboardBuilder()
-
-    builder.add(
-        InlineKeyboardButton(
-            text="Підтвердити виконання",
-            callback_data=f"accept_offer|{transaction_id}|{task_id}|{amount}|{receiver_id}"
-        )
-    )
-
-    return builder.as_markup()
 
 
 @paying_router.message(
     Command("pay")
 )
 async def create_payment(message: types.Message, dialog_manager: DialogManager):
+    if message.chat.type == ChatType.PRIVATE:
+        return await message.answer("Ціну може пропонувати тільки виконавець!")
     chat_db_id = message.chat.title.split("№")[-1]
 
-    print("Hello paying chat")
-    chat_obj: Chat = await get_chat_object(db_chat_id=int(chat_db_id))
+    chat_obj: ChatModel = await Chats().get_chat_data(db_chat_id=int(chat_db_id)).do_request()
+    task: TaskModel = await Tasks().get_task_data(chat_obj.task_id).do_request()
 
-    task: Task = await get_task(chat_obj.task_id)
-
-    if message.from_user.id != chat_obj.executor_id:
-        return await message.answer("Ціну може пропонувати тільки виконавець!")
-
-    is_payed = await check_successful_payment(
+    is_payed: SuccessModel = await Payments().check_payment_status(
         task_id=chat_obj.task_id,
         sender_id=chat_obj.client_id,
         receiver_id=chat_obj.executor_id
-    )
+    ).do_request()
 
-    print(is_payed)
-
-    if is_payed:
+    if isinstance(is_payed, SuccessModel) and is_payed.status:
         return await message.answer("Це завдання оплачено! Щоб здійснити оплату ще раз зробіть нове замовлення!")
 
-    if task.executor_id != chat_obj.executor_id or task.executor_id is not None:
+    if task.executor_id is not None and task.proposed_by == PropositionBy.public:
         return await message.answer("Це завдання вже виконується іншим виконавцем!")
 
     await dialog_manager.start(
@@ -80,20 +62,23 @@ async def create_payment(message: types.Message, dialog_manager: DialogManager):
 async def process_offer(callback: types.CallbackQuery, bot: Bot):
     action, chat_id, task_id, price = callback.data.split("|")
 
-    chat: Chat = await get_chat_object(db_chat_id=int(chat_id))
+    chat: ChatModel = await Chats().get_chat_data(db_chat_id=int(chat_id)).do_request()
 
-    try:
+    transaction = await Payments().perform_money_transfer(
+        receiver_id=chat.executor_id,
+        sender_id=chat.client_id,
+        amount=decimal.Decimal(price),
+        task_id=int(task_id)
+    ).do_request()
 
-        transaction = await create_transaction_data(
-            receiver_id=chat.executor_id,
-            sender_id=chat.client_id,
-            amount=decimal.Decimal(price),
-            task_id=int(task_id)
-        )
-
-    except ValueError as error:
-        print(error)
-        return await callback.answer(text="Неможливо зараз здійснити транзакцію!")
+    if not isinstance(transaction, TransactionModel):
+        match transaction.status_code:
+            case 400:
+                await callback.message.answer(text="У вас недостатньо коштів! Поповніть баланс та спробуйте ще раз!")
+                await callback.answer()
+            case _:
+                await callback.answer(text="Неможливо зараз здійснити транзакцію!")
+        return
 
     await callback.answer()
 
@@ -102,25 +87,30 @@ async def process_offer(callback: types.CallbackQuery, bot: Bot):
         message_id=callback.message.message_id
     )
 
-    await bot.send_message(
+    await send_accept_offer_msg(
+        bot=bot,
+        deal_chat=chat.id,
+        task_id=transaction.task_id,
         chat_id=callback.from_user.id,
-        text="Дане повідомлення призначення для того, щоб підтвердити успішне виконання завдання виконавцем."
-             "Зараз гроші знаходяться на утриманні, з Вашого балансу вони зняті, але ще не перераховані виконавцю!"
-             "При будь-яких проблемах звертайтеся до адміна @{нік_адміна} або пишіть тікет за командою"
-             "/ticket",
-        reply_markup=create_accept_offer_msg(
-            task_id=task_id,
-            transaction_id=transaction.transaction_id,
-            receiver_id=transaction.receiver_id,
-            amount=transaction.amount
-        )
+        receiver_id=transaction.receiver_id,
+        transaction_id=transaction.transaction_id,
+        amount=transaction.amount
     )
 
-    await edit_telegram_message(
-        task_id=int(task_id),
-        new_status=TaskStatus.executing,
-        is_active=False
+    await bot.send_message(
+        chat_id=-chat.chat_id if not chat.supergroup_id else chat.supergroup_id,
+        text="<b>Клієнт підтвердив замовлення! Можна розпочинати виконання!</b>",
+        parse_mode="HTML"
     )
+
+    task: TaskModel = await Tasks().get_task_data(task_id=chat.task_id).do_request()
+
+    if task.proposed_by == PropositionBy.public:
+        await edit_telegram_message(
+            task_id=int(task_id),
+            new_status=TaskStatus.executing,
+            is_active=False
+        )
 
 
 @paying_router.callback_query(
@@ -149,28 +139,40 @@ async def process_reject(callback: types.CallbackQuery, bot: Bot):
 async def accept_offer(callback: types.CallbackQuery, bot: Bot):
     action, transaction_id, task_id, amount, receiver_id = callback.data.split("|")
 
-    try:
+    payment = await Payments().accept_offer(
+        transaction_id=int(transaction_id),
+        task_id=int(task_id),
+        receiver_id=int(receiver_id),
+    ).do_request()
 
-        await accept_done_offer(
-            transaction_id=int(transaction_id),
-            task_id=int(task_id),
-            receiver_id=int(receiver_id),
-            amount=decimal.Decimal(amount)
-        )
-
-    except IntegrityError as err:
-        print(err)
+    if payment.is_error:
         return await callback.answer("Неможливо зараз обробити цей запит! Можливо у вас не вистачає коштів!")
 
     await callback.answer()
+
+    rounded_amount = round(decimal.Decimal(amount), 2)
+
+    await send_bot_message(
+        user_id=int(receiver_id),
+        msg=f"Вам надійшли кошти щодо завдання у розмірі: <b>{rounded_amount}</b> грн",
+    )
 
     await bot.delete_message(
         chat_id=callback.from_user.id,
         message_id=callback.message.message_id
     )
 
-    await edit_telegram_message(
-        task_id=int(task_id),
-        new_status=TaskStatus.done,
-        is_active=False
+    task: TaskModel = await Tasks().get_task_data(int(task_id)).do_request()
+
+    if task.proposed_by == PropositionBy.public:
+        await edit_telegram_message(
+            task_id=int(task_id),
+            new_status=TaskStatus.done,
+            is_active=False
+        )
+
+    await send_review_proposal_to_participants(
+        task_id=task.task_id,
+        client_id=task.client_id,
+        executor_id=task.executor_id
     )
