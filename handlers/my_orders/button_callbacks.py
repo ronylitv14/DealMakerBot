@@ -1,16 +1,16 @@
 from aiogram.types import CallbackQuery
-from aiogram_dialog.widgets.kbd import Button, ScrollingGroup
+from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.dialog import DialogManager
-from aiogram_dialog.widgets.text import Const
 
-from database.crud import get_orders, get_executor_orders
-from database.models import TaskStatus, Executor
 from keyboards.clients import create_keyboard_client
 from keyboards.executors import create_keyboard_executor
-from handlers.states_handler import ClientDialog, ExecutorDialog
-from database.crud import UserType
+from handlers.states_handler import ClientDialog
 
-from .window_state import MyOrders
+from database_api.components.users import UserType
+from database_api.components.executors import Executors, ExecutorModel
+from database_api.components.tasks import Tasks, TaskStatus, TasksList
+
+from handlers.my_orders.window_state import MyOrders
 
 
 class ButtonCallbacks:
@@ -18,20 +18,21 @@ class ButtonCallbacks:
     @staticmethod
     async def get_active_orders(callback: CallbackQuery, button: Button, manager: DialogManager):
         user_type: UserType = manager.dialog_data.get("user_type")
-        executor: Executor = manager.dialog_data.get("executor")
+        executor: ExecutorModel = manager.dialog_data.get("executor")
 
         if user_type == UserType.executor:
-            active_orders = await get_executor_orders(
-                executor.executor_id,
-                TaskStatus.active,
-                TaskStatus.executing
-            )
+
+            active_orders: TasksList = await Executors().get_executor_tasks(
+                status=[TaskStatus.active, TaskStatus.executing],
+                executor_id=executor.user_id
+            ).do_request()
+
         else:
-            active_orders = await get_orders(
-                callback.from_user.id,
-                user_type,
-                TaskStatus.executing
-            )
+            active_orders: TasksList = await Tasks().get_all_user_tasks(
+                user_id=callback.from_user.id,
+                user_type=user_type,
+                task_status=[TaskStatus.active, TaskStatus.executing]
+            ).do_request()
 
         if active_orders:
             manager.dialog_data["orders"] = active_orders
@@ -44,19 +45,19 @@ class ButtonCallbacks:
     @staticmethod
     async def get_finished_orders(callback: CallbackQuery, button: Button, manager: DialogManager):
         user_type: UserType = manager.dialog_data.get("user_type")
-        executor: Executor = manager.dialog_data.get("executor")
+        executor: ExecutorModel = manager.dialog_data.get("executor")
 
         if executor:
-            finished_orders = await get_executor_orders(
-                executor.executor_id,
-                TaskStatus.done
-            )
+            finished_orders = await Executors().get_executor_tasks(
+                status=[TaskStatus.done],
+                executor_id=executor.user_id
+            ).do_request()
         else:
-            finished_orders = await get_orders(
-                callback.from_user.id,
-                user_type,
-                TaskStatus.done
-            )
+            finished_orders = await Tasks().get_all_user_tasks(
+                user_id=callback.from_user.id,
+                user_type=user_type,
+                task_status=[TaskStatus.done]
+            ).do_request()
 
         if finished_orders:
             manager.dialog_data["orders"] = finished_orders
