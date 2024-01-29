@@ -3,20 +3,20 @@ from aiogram_dialog.dialog import DialogManager
 from aiogram.types import Message
 from aiogram.enums import ContentType
 
-from database.crud import create_user_warning
-from database.models import User
+from database_api.components.users import UserResponse
+from database_api.components.warnings_component import Warnings
 
 
 async def process_user_warning(message: Message, widget: MessageInput, manager: DialogManager):
-    user: User = manager.start_data.get("user")
+    user: UserResponse = manager.start_data.get("user")
     warning = message.text
 
-    await create_user_warning(
+    await Warnings().save_warning_data(
         user_id=user.telegram_id,
         reason=warning,
-        admin_id=message.from_user.id,
+        issued_by=message.from_user.id,
         warning_count=user.warning_count
-    )
+    ).do_request()
 
     await message.bot.send_message(
         chat_id=user.telegram_id,
