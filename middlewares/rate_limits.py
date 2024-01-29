@@ -26,4 +26,4 @@ class RateLimitMiddleware(BaseMiddleware):
                 return await event.answer()
 
         self.user_data[event.from_user.id] = datetime.utcnow()
-        await handler(event, data)
+        return await handler(event, data)

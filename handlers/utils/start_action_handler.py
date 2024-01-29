@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from aiogram import types
 from aiogram.methods.edit_message_text import EditMessageText
@@ -8,8 +8,11 @@ from aiogram.utils.media_group import MediaGroupBuilder
 from aiogram_dialog.dialog import DialogManager
 from aiogram_dialog.api.entities import StartMode, ShowMode
 
-from database.crud import get_task, get_user_by_task_id, get_user_auth, get_group_message, update_task_status
-from database.models import TaskStatus, GroupMessage, Task, FileType, User
+from database_api.components.tasks import Tasks, TasksList, TaskModel, TaskStatus, FileType
+from database_api.components.group_messages import GroupMessages, GroupMessageResponse
+from database_api.components.users import Users, UserResponse
+from database_api.components.executors import Executors, ExecutorModel
+
 from keyboards.inline_keyboards import create_group_message_keyboard
 from handlers.send_client_msg.dialog_windows import SendMessageClient
 
@@ -23,9 +26,8 @@ TG_GROUP_NAME = os.getenv("TG_GROUP_NAME")
 ACTIONS = {"take_order", "check_files"}
 
 
-
 async def change_message_status(task_id: int, message: types.Message, new_status: TaskStatus):
-    group_msg: GroupMessage = await get_group_message(task_id)
+    group_msg: GroupMessageResponse = await GroupMessages().get_group_message_by_task(task_id).do_request()
     edited_msg = "#" + group_msg.message_text.split(sep="#", maxsplit=1)[1]
     edited_msg = f"🟠 {str(new_status)}\n\n" + edited_msg
 
@@ -69,16 +71,25 @@ class HandleAction:
 
 
 class ProcessOrder:
-    def __init__(self, message: types.Message, task_id: int, dialog_manager: DialogManager):
+    def __init__(self, message: types.Message, task_id: int, dialog_manager: DialogManager,
+                 callback: Optional[types.CallbackQuery] = None):
         self.message = message
         self.task_id = task_id
         self.manager = dialog_manager
+        self.callback = callback
 
     async def process_action(self):
         # TODO: Зробити так, щоб при повторному натиску кнопки викидало помилку про
         # вже взяте замовлення, або про те, що воно вже твоє
 
-        task: Task = await get_task(task_id=self.task_id)
+        user_id = self.message.from_user.id
+
+        executor = await Executors().get_executor_data(user_id=user_id).do_request()
+        if not isinstance(executor, ExecutorModel):
+            return await self.message.answer(
+                "Так як ви не є зареєстрованим виконавцем - це замовлення взяти неможливо!")
+
+        task: TaskModel = await Tasks().get_task_data(task_id=self.task_id).do_request()
 
         if task.executor_id is not None:
             await self.message.answer(
@@ -93,7 +104,9 @@ class ProcessOrder:
             )
             return
 
-        executor_username: User = await get_user_auth(self.message.from_user.id)
+        if self.callback:
+            user_id = self.callback.from_user.id
+        executor_username: UserResponse = await Users().get_user_from_db(user_id).do_request()
 
         await self.manager.start(
             state=SendMessageClient.main,
@@ -141,7 +154,8 @@ class ProcessFiles:
 
     async def process_action(self):
         await self.state.set_state(ClientDialog.client_state)
-        task: Task = await get_task(self.task_id)
+        # task: Task = await get_task(self.task_id)
+        task: TaskModel = await Tasks().get_task_data(task_id=self.task_id).do_request()
         photos = []
         docs = []
 

@@ -1,22 +1,22 @@
-from typing import List
 
 from aiogram_dialog.dialog import Dialog, DialogManager
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram_dialog.window import Window
-from aiogram_dialog.widgets.text import Const, Format, Jinja
-from aiogram_dialog.widgets.kbd import Back, Cancel, Row
+from aiogram_dialog.widgets.text import Const
+from aiogram_dialog.widgets.kbd import Back, Row
 
-from database.models import Task
-from .window_widgets import (
+from database_api.components.tasks import TaskModel
+from handlers.my_orders.window_widgets import (
     TelegramBtns,
     TelegramInputs
 )
 
-from .window_state import MyOrders
+from handlers.my_orders.window_state import MyOrders
+from database_api.components.tasks import TasksList
 
 
-def create_valid_button(task: Task):
+def create_valid_button(task: TaskModel):
     return f"№ замовлення {task.task_id}, Предмет: {task.subjects[0]}"
 
 
@@ -26,12 +26,12 @@ async def render_my_orders(**kwargs):
 
     updated_orders = []
 
-    for order in orders:
-        updated_orders.append((create_valid_button(order), order.task_id))
+    if isinstance(orders, TasksList):
+        for ind, order in enumerate(orders):
+            updated_orders.append((order, ind))
 
     return {
-        "orders": updated_orders,
-        "count": len(updated_orders)
+        "orders": updated_orders if updated_orders else [("У вас поки немає замовлень", -1)]
     }
 
 

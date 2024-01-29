@@ -1,8 +1,8 @@
 from typing import List, Any
 
 from aiogram_dialog.window import Window
-from aiogram_dialog.widgets.text import Format, Const
-from aiogram_dialog.widgets.kbd import Row, Cancel
+from aiogram_dialog.widgets.text import Format
+from aiogram_dialog.widgets.kbd import Row
 from aiogram_dialog.dialog import Dialog, DialogManager
 from handlers.states_handler import ClientDialog, ExecutorDialog
 from aiogram.fsm.context import FSMContext
@@ -12,8 +12,11 @@ from handlers.creating_orders.dialog_windows import get_order_type, get_subjects
 
 from handlers.deals.window_widgets import TelegramInputs, TelegramBtns
 
-from database.crud import get_all_executors, get_proposed_deals, get_recent_clients
-from database.models import PropositionBy, Task
+
+from database_api.components.tasks import PropositionBy, TasksList
+from database_api.components.executors import Executors
+from database_api.components.chats import Chats
+from database_api.components.users import UserResponseList
 
 proposed_deals_states = {
     ClientDialog.client_state: PropositionBy.executor,
@@ -21,8 +24,8 @@ proposed_deals_states = {
 }
 
 users_for_deals = {
-    ClientDialog.client_state: get_all_executors,
-    ExecutorDialog.executor_state: get_recent_clients
+    ClientDialog.client_state: Executors().get_all_executors,
+    ExecutorDialog.executor_state: Chats().get_recent_clients
 }
 
 
@@ -31,8 +34,9 @@ async def get_nickname_data(**kwargs):
     cur_state = manager.start_data.get("cur_state")
 
     get_data_func = users_for_deals[cur_state]
+    user_id: int = manager.start_data.get("user_id")
 
-    users = await get_data_func(manager.start_data.get("user_id"))
+    users: UserResponseList = await get_data_func(user_id).do_request()
     manager.dialog_data["users"] = users
     result = []
 
@@ -51,9 +55,9 @@ async def get_deals_data(**kwargs):
     returned_deals = manager.dialog_data["returned_deals"]
 
     all_deals = []
-
-    for ind, deal in enumerate(returned_deals):
-        all_deals.append((deal, ind))
+    if isinstance(returned_deals, TasksList):
+        for ind, deal in enumerate(returned_deals):
+            all_deals.append((deal, ind))
 
     return {
         "all_deals": all_deals if all_deals else [("Немає нових угод", -1)]
@@ -61,9 +65,11 @@ async def get_deals_data(**kwargs):
 
 
 main_window = Window(
-    Format("Ви перейшли до вкладки з угодами. У вас "
-           "є можливітсь обрати чи ви хочете створити нову угоду з вже відомим "
-           "виконавцем чи переглянути запропоновані вам угоди"),
+    Format(
+        "Ви перейшли до вкладки з угодами. У вас "
+        "є можливітсь обрати чи ви хочете створити нову угоду з вже відомою наперед "
+        "людиною чи переглянути запропоновані вам угоди"
+    ),
     TelegramBtns.btn_create_deal,
     TelegramBtns.btn_watch_deals,
     TelegramBtns.btn_cancel,

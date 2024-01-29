@@ -13,7 +13,6 @@ from aiogram_dialog import (
 )
 from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.api.entities import ShowMode
-from aiogram.fsm.context import FSMContext
 
 from utils.dialog_categories import subject_titles, university_tasks
 from keyboards.clients import create_keyboard_client
@@ -23,23 +22,24 @@ from utils.group_msg_template import create_group_message
 
 from aiogram_dialog.widgets.kbd import Multiselect
 
-from database.crud import save_task_to_db, update_task_files, add_group_message
-from database.models import TaskStatus, Task, FileType
+from database_api.components.tasks import Tasks, TaskModel, TaskStatus, FileType
+from database_api.components.group_messages import GroupMessages
+
 
 load_dotenv()
 
-group_name = os.getenv('TG_GROUP_NAME')
+TG_GROUP_NAME = os.getenv('TG_GROUP_NAME')
 
 
 class AddingGroupMessage:
-    def __init__(self, callback: CallbackQuery, manager: DialogManager, task: Task):
+    def __init__(self, callback: CallbackQuery, manager: DialogManager, task: TaskModel):
         self.callback = callback
         self.manager = manager
         self.task = task
 
     async def add_group_message(self, group_name):
         group_message = create_group_message(
-            task_status=self.task.status.value,
+            task_status=self.task.status,
             task_types=self.task.work_type,
             task_subjects=self.task.subjects,
             task_deadline=self.task.deadline,
@@ -60,14 +60,14 @@ class AddingGroupMessage:
             )
         )
 
-        is_saved = await add_group_message(
+        is_saved = await GroupMessages().save_group_message(
             group_message_id=msg.message_id,
             task_id=self.task.task_id,
             message_text=group_message,
             has_files=True if files else False
-        )
+        ).do_request()
 
-        if not is_saved:
+        if is_saved.is_error:
             await msg.delete()
 
 
@@ -99,7 +99,6 @@ class ButtonCallbacks:
         price_value = message.text
         if price_value.isdigit():
             manager.dialog_data["price"] = price_value
-            # await manager.switch_to(OrderState.deadline)
             await manager.next()
         else:
             await message.answer(
@@ -149,7 +148,7 @@ class ButtonCallbacks:
     @staticmethod
     async def save_order(callback: CallbackQuery, button: Button, manager: DialogManager):
 
-        task = await save_task_to_db(
+        task: TaskModel = await Tasks().save_task_data(
             client_id=callback.from_user.id,
             description=manager.dialog_data.get('desc'),
             price=manager.dialog_data.get('price'),
@@ -158,21 +157,8 @@ class ButtonCallbacks:
             files=manager.dialog_data.get("docs", []),
             files_type=manager.dialog_data.get("type", []),
             status=TaskStatus.active,
-            work_type=manager.dialog_data.get('task_type'),
-        )
-
-        # if files_list := manager.dialog_data.get('docs'):
-        #     # results_paths = await download_files(
-        #     #     bot=callback.bot,
-        #     #     files_list=files_list,
-        #     #     user_tg_id=callback.from_user.id,
-        #     #     task_id=task.task_id,
-        #     # )
-        #
-        #     task = await update_task_files(
-        #         files=files_list,
-        #         task_id=task.task_id
-        #     )
+            work_type=manager.dialog_data.get('task_type')
+        ).do_request()
 
         await manager.done()
         await callback.answer(text='Зберігаємо дані до групи! Це може зайняти якийсь час....')
@@ -182,7 +168,7 @@ class ButtonCallbacks:
             manager=manager,
             task=task
         )
-        await adding_msg.add_group_message(group_name)
+        await adding_msg.add_group_message(TG_GROUP_NAME)
         await callback.message.answer(
             text="Збережено",
             reply_markup=create_keyboard_client()
@@ -196,7 +182,6 @@ class ButtonCallbacks:
             )
         else:
             manager.dialog_data["desc"] = message.text
-            # await manager.switch_to(OrderState.adding_materials)
             await manager.next()
 
     @staticmethod

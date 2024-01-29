@@ -5,16 +5,19 @@ from aiogram.types import CallbackQuery
 from aiogram.types import ContentType
 
 from aiogram_dialog.dialog import DialogManager
-from aiogram_dialog.api.entities import StartMode
 from aiogram_dialog.widgets.kbd import Button, ScrollingGroup, Select
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.text import Const, Format
 
-from handlers.admin_panel.button_callbacks import ButtonCallbacks, InputCallbacks, ButtonCallbacksMoney
-from handlers.admin_panel.window_states import WatchExecutorApplication
+from handlers.admin_panel.button_callbacks import ButtonCallbacks, InputCallbacks, ButtonCallbacksMoney, \
+    CallbacksDeactivationChat
 from handlers.utils.start_action_handler import create_files_reply
-from database.models import Executor, User, Balance, WithdrawalRequest, UserTicket, TicketStatus
-from database.crud import get_user_auth, get_user_balance
+
+from database_api.components.users import Users, UserResponse, UserResponseList
+from database_api.components.balance import Balance, BalanceModel, BalanceAction
+from database_api.components.executors import Executors, ExecutorsList, ExecutorModel
+from database_api.components.tickets import UserTicketModel, TicketStatus, TicketsList
+from database_api.components.withdrawals import WithdrawalRequestList, WithdrawalRequestModel
 
 
 async def on_application_selected(callback: CallbackQuery, widget: Any,
@@ -22,10 +25,10 @@ async def on_application_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>На даний момент заявок немає!</b>", parse_mode="HTML")
 
-    applications: List[Executor] = manager.start_data.get("applications")
-    application: Executor = applications[int(item_id)]
+    applications: ExecutorsList = manager.start_data.get("applications")
+    application: ExecutorModel = applications[int(item_id)]
 
-    user: User = await get_user_auth(application.user_id)
+    user: UserResponse = await Users().get_user_from_db(application.user_id).do_request()
 
     tags = [tag.strip().replace(" ", "_") for tag in application.tags]
 
@@ -36,12 +39,14 @@ async def on_application_selected(callback: CallbackQuery, widget: Any,
     manager.dialog_data["applicant"] = application
 
     await manager.next()
+    has_files = False
 
-    has_files = await create_files_reply(
-        files_type=application.work_files_type,
-        files=application.work_examples,
-        message=callback.message
-    )
+    if application.work_files_type and application.work_examples:
+        has_files = await create_files_reply(
+            files_type=application.work_files_type,
+            files=application.work_examples,
+            message=callback.message
+        )
 
     if not has_files:
         await callback.message.answer(
@@ -55,10 +60,10 @@ async def on_user_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>На даний момент користувачів немає!</b>", parse_mode="HTML")
 
-    users: List[User] = manager.start_data.get("users")
-    user: User = users[int(item_id)]
+    users: UserResponseList = manager.start_data.get("users")
+    user: UserResponse = users[int(item_id)]
 
-    balance: Balance = await get_user_balance(user_id=user.telegram_id)
+    balance: BalanceModel = await Balance().get_user_balance(user.telegram_id).do_request()
 
     manager.dialog_data["user"] = user
     manager.dialog_data["username"] = user.username
@@ -73,10 +78,10 @@ async def on_withdrawal_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>Немає нових запитів!</b>", parse_mode="HTML")
 
-    requests: List[WithdrawalRequest] = manager.start_data.get("requests")
-    request: WithdrawalRequest = requests[int(item_id)]
+    requests: WithdrawalRequestList = manager.start_data.get("requests")
+    request: WithdrawalRequestModel = requests[int(item_id)]
 
-    balance: Balance = await get_user_balance(user_id=request.user_id)
+    balance: BalanceModel = await Balance().get_user_balance(request.user_id).do_request()
 
     manager.dialog_data["balance"] = balance.balance_money
     manager.dialog_data["request_user_id"] = request.user_id
@@ -93,13 +98,13 @@ async def on_ticket_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>Немає нових тікетів!</b>", parse_mode="HTML")
 
-    tickets: List[UserTicket] = manager.start_data.get("tickets")
-    ticket: UserTicket = tickets[int(item_id)]
+    tickets: TicketsList = manager.start_data.get("tickets")
+    ticket: UserTicketModel = tickets[int(item_id)]
 
     if ticket.status == TicketStatus.closed:
         return await callback.answer(text="Цей тікет вже закритий!", show_alert=True)
 
-    user: User = await get_user_auth(ticket.user_id)
+    user: UserResponse = await Users().get_user_from_db(telegram_id=ticket.user_id).do_request()
 
     manager.dialog_data["username"] = user.username
     manager.dialog_data["tg_username"] = user.telegram_username
@@ -211,3 +216,8 @@ class TelegramBtns:
 
     btn_create_chat = Button(Const("Створити унікальний чат"), id="btn_create_chat",
                              on_click=ButtonCallbacks.create_unique_chat)
+    btn_save_without_invoice = Button(Const("Зберегти без invoice_id"), id="b_save_without_invoice",
+                                      on_click=ButtonCallbacksMoney.save_without_invoice_id)
+
+    btn_start_inactive_chat_dialog = Button(Const("Звільнення чату"), id="b_deactivate_chat",
+                                            on_click=CallbacksDeactivationChat.start_deactivation_chat_dialog)

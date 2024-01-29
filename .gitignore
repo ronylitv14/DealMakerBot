@@ -162,4 +162,5 @@ cython_debug/
 
 *.session
 utils/*.session
-.idea
+.idea/
+./admin_sessions/*.session

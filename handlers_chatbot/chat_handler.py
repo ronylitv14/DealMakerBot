@@ -1,12 +1,10 @@
 from aiogram import types, F, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.filters.command import Command, CommandObject, CommandStart
-from aiogram.enums import ChatType, ContentType
+from aiogram.enums import ChatType
 from aiogram.dispatcher.router import Router
 
-from handlers_chatbot.utils.redis_interaction import store_message_in_redis, send_stored_messages, is_session_active, \
-    deactivate_session, activate_session
-from database.crud import get_chat_object
+from utils.redis_utils import store_message_in_redis, is_session_active
+from database_api.components.chats import ChatModel, Chats
 
 chat_router = Router()
 chat_router.message.filter(F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
@@ -20,7 +18,7 @@ def get_chat_wrapper(func):
         chat_obj = storage_data.get(deal_id)
 
         if not chat_obj:
-            chat_obj = await get_chat_object(db_chat_id=int(deal_id))
+            chat_obj: ChatModel = await Chats().get_chat_data(db_chat_id=int(deal_id)).do_request()
             await state.set_data({deal_id: chat_obj})
 
         if message.from_user.id not in [chat_obj.client_id, chat_obj.executor_id]:

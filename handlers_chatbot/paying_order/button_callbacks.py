@@ -5,8 +5,9 @@ from aiogram_dialog.dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button
 from aiogram import Bot
 
-from database.models import Chat, Task
-from database.crud import get_task
+
+from database_api.components.tasks import TaskModel, Tasks
+from database_api.components.chats import ChatModel
 
 
 def create_accept_offer(chat_id: int, task_id: int, price: int):
@@ -30,11 +31,11 @@ def create_accept_offer(chat_id: int, task_id: int, price: int):
 class InputCallbacks:
     @staticmethod
     async def process_offer_price(message: Message, widget: MessageInput, manager: DialogManager):
-        chat_obj: Chat = manager.start_data.get("chat_obj")
+        chat_obj: ChatModel = manager.start_data.get("chat_obj")
 
         price = message.text
 
-        task: Task = await get_task(chat_obj.task_id)
+        task: TaskModel = await Tasks().get_task_data(chat_obj.task_id).do_request()
 
         try:
             price = int(price)
@@ -50,7 +51,7 @@ class InputCallbacks:
                 text=f"Ви приймаєте це замовлення?\n\nЗамовлення щодо завдання: {chat_obj.task_id}\n\n"
                      f"Предмет завдання: {task.subjects}\n\n"
                      f"Опис завдання: \n\n{task.description}\n\n"
-                     f"Запропонована ціна: <b>{price}</b>",
+                     f"Запропонована ціна: <b>{price} грн</b>",
                 reply_markup=create_accept_offer(
                     chat_id=chat_obj.id,
                     task_id=chat_obj.task_id,

@@ -7,8 +7,8 @@ from aiogram_dialog.dialog import DialogManager, Dialog
 
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State
-from .window_state import BalanceGroup, WithdrawingMoneySub
-from .window_widgets import (
+from handlers.balance.window_state import BalanceGroup, WithdrawingMoneySub
+from handlers.balance.window_widgets import (
     TelegramBtns,
     TelegramInputs
 )
@@ -66,6 +66,7 @@ checking_password_window = Window(
 withdraw_money_window = Window(
     Format(input_sum_text),
     TelegramInputs.input_sum,
+    TelegramBtns.btn_withdraw_all_money,
     Row(
         TelegramBtns.btn_back,
         TelegramBtns.btn_cancel_subdialog,
@@ -81,17 +82,13 @@ async def get_cards_info(**kwargs):
 
     updated_cards = []
 
-    if cards:
-        for ind, card in enumerate(cards):
-            updated_cards.append((card, ind + 1))
-
-    else:
-        updated_cards.append(("Немає карт", 0))
+    for ind, card in enumerate(cards):
+        updated_cards.append((card, ind))
 
     manager.dialog_data["updated_cards"] = updated_cards
 
     return {
-        "cards": updated_cards
+        "cards": updated_cards if updated_cards else [("Немає карток", -1)]
     }
 
 
@@ -129,10 +126,6 @@ async def close_balance_dialog(data: Any, manager: DialogManager):
 
 async def on_process_result(start_data, result: Dict[str, str],
                             dialog_manager: DialogManager):
-    # state: FSMContext = dialog_manager.dialog_data.get("state_object")
-    # cur_state: State = dialog_manager.dialog_data.get("cur_state")
-    # if state:
-    #     await state.set_state(cur_state)
 
     if result.get("has_ended"):
         await dialog_manager.done()

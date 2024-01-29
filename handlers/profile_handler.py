@@ -11,9 +11,10 @@ from keyboards.clients import create_profile_instruments, create_keyboard_client
 from keyboards.executors import create_keyboard_executor
 
 from handlers.profile_instruments.window_state import *
-from handlers.reset_password.window_state import *
 from handlers.profile_instruments.dialog_windows import create_dialogs
 
+from telegraph_pages.executor_profile import create_executor_summary_text, get_summary_url
+from database_api.components.reviews import Reviews, UserReviewResponse
 from middlewares.auth_middelware import InnerAuthMiddleware
 
 profile_router = Router()
@@ -42,6 +43,15 @@ class StateFilter(BaseFilter):
 )
 async def start_profile_dialog(message: Message, state: FSMContext):
     cur_state = await state.get_state()
+
+    reviews: UserReviewResponse = await Reviews().get_user_reviews(message.from_user.id).do_request()
+
+    url = await get_summary_url(
+        reviews=reviews
+    )
+
+    await message.answer(create_executor_summary_text(url), parse_mode="HTML")
+
     if cur_state == ClientDialog.client_state:
         await state.set_state(ClientDialog.profile)
         await message.answer(
@@ -79,16 +89,7 @@ async def on_phone_edit(message: Message, state: FSMContext, dialog_manager: Dia
     StateFilter(ExecutorDialog.profile, ClientDialog.profile)
 )
 async def on_password_reset(message: Message, state: FSMContext, dialog_manager: DialogManager):
-    cur_state = await state.get_state()
-
-    await state.set_state(ProfileDialog.edit_password)
-    await message.answer(
-        text="Вікно для пароля",
-        reply_markup=ReplyKeyboardRemove()
-    )
-    await dialog_manager.start(state=EditPassword.choose_option, mode=StartMode.RESET_STACK)
-    dialog_manager.dialog_data["cur_state"] = cur_state
-    dialog_manager.dialog_data["state"] = state
+    await message.answer("У розробці! На даний момент цю дію виконати неможливо. Спробуйте зв'язатися з менеджером!")
 
 
 @profile_router.message(

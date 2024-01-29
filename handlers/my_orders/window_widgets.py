@@ -1,41 +1,44 @@
 import operator
-from typing import List, Any
+from typing import Any
 
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import CallbackQuery
 from aiogram_dialog.dialog import DialogManager
 from aiogram_dialog.widgets.text import Const, Format
-from aiogram_dialog.widgets.kbd import Button, ScrollingGroup, Multiselect, Select, Url
+from aiogram_dialog.widgets.kbd import Button, ScrollingGroup, Select
 
-from .button_callbacks import ButtonCallbacks
+from handlers.my_orders.button_callbacks import ButtonCallbacks
+from keyboards.inline_keyboards import create_chats_inline_kbd
 
-from database.crud import get_orders, get_chats_by_taskid, UserType
-from database.models import Task, Chat
+from database_api.components.tasks import Tasks, TaskModel, UserType, TasksList
+from database_api.components.chats import Chats, ChatsList
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 async def on_order_selected(callback: CallbackQuery, widget: Any,
                             manager: DialogManager, item_id: str):
-    orders: List[Task] = manager.dialog_data["orders"]
+    if item_id == "-1":
+        return await callback.message.answer("Немає доступних замовлень!")
 
     user_type: UserType = manager.dialog_data.get("user_type")
-    for order in orders:
-        if order.task_id == int(item_id):
-            builder = InlineKeyboardBuilder()
-            chats: List[Chat] = await get_chats_by_taskid(order.task_id)
-            for chat in chats:
-                builder.add(
-                    InlineKeyboardButton(
-                        text=chat.group_name,
-                        url=f"https://t.me/dealmakerchatbot?start=chat-{chat.id}" if user_type == UserType.client else chat.invite_link
-                    )
-                )
+    orders: TasksList = manager.dialog_data.get("orders")
+    order: TaskModel = orders[int(item_id)]
 
-            await callback.message.answer(
-                text=f"Посилання на чати!" if len(chats) >= 1 else "Для цього замовлення, на жаль, "
-                                                                   "немає доступних посилань!",
-                reply_markup=builder.as_markup()
-            )
-            return
+    chats: ChatsList = await Chats().get_chats_by_task_id(
+        task_id=order.task_id
+    ).do_request()
+
+    if not isinstance(chats, ChatsList):
+        return await callback.message.answer("Поки немає доступних чатів для цього замовлення!")
+
+    reply_markup = create_chats_inline_kbd(chats, user_type)
+
+    await callback.message.answer(
+        text=f"Посилання на чати!" if len(chats) >= 1 else "Для цього замовлення, на жаль, "
+                                                           "немає доступних посилань!",
+        reply_markup=reply_markup
+    )
 
 
 class TelegramInputs:

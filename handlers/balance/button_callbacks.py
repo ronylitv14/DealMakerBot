@@ -1,21 +1,25 @@
 import decimal
 import os
-
 from aiogram.types import CallbackQuery, Message
 from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.dialog import DialogManager
 
-from handlers.states_handler import ExecutorDialog, ClientDialog
-from .window_state import BalanceGroup, WithdrawingMoneySub
+from handlers.states_handler import ExecutorDialog
+from handlers.balance.window_state import BalanceGroup, WithdrawingMoneySub
+
 from keyboards.inline_keyboards import create_payment_msg
 from keyboards.clients import create_keyboard_client
 from keyboards.executors import create_keyboard_executor
+
 from utils.dialog_texts import redirect_payment_url
 from utils.bank_card_utils import is_valid_card
 from handlers.utils.payment_system import BodyInfo, HeaderInfo, get_invoice_payment_link
-from database.crud import get_user_auth, get_user_balance, update_user_cards, add_transaction_data, create_withdrawal_request
-from database.models import User, TransactionType, TransactionStatus, WithdrawalStatus
+
+from database_api.components.users import Users, UserResponse
+from database_api.components.balance import Balance, BalanceModel, BalanceAction
+from database_api.components.transactions import Transactions, TransactionStatus, TransactionType
+from database_api.components.withdrawals import Withdrawals, WithdrawalStatus
 
 from dotenv import load_dotenv
 
@@ -24,6 +28,8 @@ load_dotenv()
 X_TOKEN = os.getenv("X_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 COMMISSION = decimal.Decimal("0.03")
+TG_GROUP_NAME = os.getenv("TG_GROUP_NAME")
+
 
 class ButtonCallbacks:
     @staticmethod
@@ -35,6 +41,7 @@ class ButtonCallbacks:
         try:
             input_money = int(message.text)
             manager.dialog_data["money"] = input_money
+
             await manager.switch_to(BalanceGroup.accept_request)
         except ValueError:
             await message.answer(
@@ -52,17 +59,21 @@ class ButtonCallbacks:
         await callback.answer(
             text="Зараз буде створена платіжка для оформлення платежу"
         )
-
-        payment_response = await get_invoice_payment_link(
-            header_info=HeaderInfo(
-                x_token=X_TOKEN
-            ),
-            body_info=BodyInfo(
-                amount=int(manager.dialog_data.get("money")) * 100,
-                webhook_url=f"{WEBHOOK_URL}/{callback.from_user.id}",
-                redirect_url="https://t.me/newdopomogatestbot"
+        try:
+            payment_response = await get_invoice_payment_link(
+                header_info=HeaderInfo(
+                    x_token=X_TOKEN
+                ),
+                body_info=BodyInfo(
+                    amount=int(manager.dialog_data.get("money")) * 100,
+                    webhook_url=f"{WEBHOOK_URL}/webhook/monobank/{callback.from_user.id}",
+                    # redirect_url=TG_GROUP_NAME
+                )
             )
-        )
+        except ValueError as err:
+            await manager.done()
+            await callback.message.answer("Виникла помилка при створені платежу! Спробуйте пізніше!")
+            return
 
         invoice_id = payment_response.get("invoiceId")
         page_url = payment_response.get("pageUrl")
@@ -75,13 +86,17 @@ class ButtonCallbacks:
             parse_mode="HTML"
         )
 
-        await add_transaction_data(
+        response = await Transactions().save_transaction_data(
             invoice_id=invoice_id,
             receiver_id=callback.from_user.id,
             transaction_type=TransactionType.debit,
             transaction_status=TransactionStatus.pending,
             amount=manager.dialog_data.get("money"),
-        )
+        ).do_request()
+
+        if response.is_error:
+            await callback.message.answer("Виникла помилка при створенні транзакції! Спробуйте пізніше!")
+            return
 
         await manager.done()
         await callback.message.answer(
@@ -93,19 +108,42 @@ class ButtonCallbacks:
     async def accept_withdraw(callback: CallbackQuery, button: Button, manager: DialogManager):
         cur_state = manager.dialog_data.get("cur_state")
         input_sum = decimal.Decimal(manager.dialog_data.get("input_sum"))
+        commission = decimal.Decimal(manager.dialog_data.get("commission_sum"))
         card_number = manager.dialog_data.get("withdrawal_card")
 
-        commission = decimal.Decimal(input_sum) * COMMISSION
+        commission = round(commission, 2)
+        input_sum = round(input_sum, 2)
 
         is_executor = True if cur_state == ExecutorDialog.executor_state else False
 
-        await create_withdrawal_request(
+        balance_withdrawal = await Balance().perform_fund_transfer(
+            user_id=callback.from_user.id,
+            amount=round(input_sum + commission, 2),
+            action=BalanceAction.withdrawal
+        ).do_request()
+
+        if balance_withdrawal.is_error:
+            await callback.answer(text='Виникли проблеми з перенесенням коштів! Спробуйте пізніше!')
+            await manager.done(result={"has_ended": True})
+            return
+
+        withdrawal = await Withdrawals().save_withdrawal_data(
             user_id=callback.from_user.id,
             status=WithdrawalStatus.pending,
-            amount=input_sum - commission,
+            amount=input_sum,
             commission=commission,
             payment_method=card_number
-        )
+        ).do_request()
+
+        if withdrawal.is_error:
+            await callback.answer(text='Виникли проблеми з створення запиту на кошти! Спробуйте пізніше!')
+            await manager.done(result={"has_ended": True})
+            await Balance().perform_fund_transfer(
+                user_id=callback.from_user.id,
+                amount=round(input_sum + commission, 2),
+                action=BalanceAction.replenishment
+            ).do_request()
+            return
 
         await callback.message.answer(
             text="Скоро кошти з'являться на вашому рахунку!",
@@ -137,16 +175,16 @@ class ButtonCallbacks:
     @staticmethod
     async def check_password(message: Message, input_widget: MessageInput, manager: DialogManager):
         password = message.text
-        user: User = await get_user_auth(
-            telegram_id=message.from_user.id
-        )
-        manager.dialog_data["dialog_user"]: User = user
+
+        user: UserResponse = await Users().get_user_from_db(telegram_id=message.from_user.id).do_request()
+
+        manager.dialog_data["dialog_user"]: UserResponse = user
         is_authorized = user.check_password(
             password=password
         )
         if is_authorized:
 
-            balance = await get_user_balance(user_id=user.telegram_id)
+            balance: BalanceModel = await Balance().get_user_balance(user_id=user.telegram_id).do_request()
             manager.dialog_data["cards"] = balance.user_cards
             manager.dialog_data["balance"] = balance.balance_money
 
@@ -168,7 +206,7 @@ class ButtonCallbacks:
     async def process_sum_input(message: Message, input_widget: MessageInput, manager: DialogManager):
         try:
             input_sum = message.text
-            input_sum = float(input_sum)
+            input_sum = decimal.Decimal(input_sum)
 
             if input_sum > manager.dialog_data.get("balance"):
                 await message.answer(
@@ -185,7 +223,9 @@ class ButtonCallbacks:
                     parse_mode="HTML"
                 )
             else:
-                manager.dialog_data["input_sum"] = input_sum
+                commission_sum = input_sum * COMMISSION
+                manager.dialog_data["input_sum"] = round(input_sum - commission_sum, 2)
+                manager.dialog_data["commission_sum"] = round(commission_sum, 2)
                 await manager.switch_to(WithdrawingMoneySub.handle_cards)
         except ValueError:
             await message.answer(
@@ -200,12 +240,13 @@ class ButtonCallbacks:
         card_valid = is_valid_card(card_number)
 
         if card_valid:
-            is_updated = await update_user_cards(
+
+            is_updated = await Balance().update_user_cards(
                 user_id=message.from_user.id,
                 card=card_number
-            )
+            ).do_request()
 
-            if not is_updated:
+            if is_updated.is_error:
                 await message.answer(
                     text="Сталася помилка при зберіганні картки!"
                 )
@@ -220,3 +261,15 @@ class ButtonCallbacks:
                      "Будь ласка, перевірте дані та спробуйте ввести знову.",
                 parse_mode="HTML"
             )
+
+
+class WithdrawCallbacks:
+    @staticmethod
+    async def withdraw_all_money(callback: CallbackQuery, button: Button, manager: DialogManager):
+        balance = manager.dialog_data.get("balance")
+        amount = decimal.Decimal(balance)
+        commission_sum = amount * COMMISSION
+
+        manager.dialog_data["input_sum"] = round(amount - commission_sum, 2)
+        manager.dialog_data["commission_sum"] = round(commission_sum, 2)
+        await manager.next()

@@ -1,6 +1,3 @@
-import abc
-from aiogram import Bot
-from aiogram.filters.command import CommandObject
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram.enums import ContentType, ChatType
 from aiogram_dialog.widgets.kbd import Button
@@ -9,10 +6,10 @@ from aiogram_dialog.dialog import DialogManager
 from aiogram.types import Message, CallbackQuery
 
 from aiogram_dialog.api.entities import ShowMode
-from handlers_chatbot.utils.redis_interaction import deactivate_session
 from handlers_chatbot.utils.input_message import ChooseMessageHandler
 
-from database.models import Chat
+from utils.redis_utils import deactivate_session
+from database_api.components.chats import ChatModel
 
 
 async def process_user_message(message: Message, widget: MessageInput, manager: DialogManager):
@@ -24,7 +21,7 @@ async def process_user_message(message: Message, widget: MessageInput, manager: 
             )
 
     content_type = message.content_type
-    chat_obj: Chat = manager.start_data.get("chat_obj")
+    chat_obj: ChatModel = manager.start_data.get("chat_obj")
 
     manager.show_mode = ShowMode.EDIT
 
@@ -35,7 +32,7 @@ async def process_user_message(message: Message, widget: MessageInput, manager: 
 
 
 async def end_chat(callback: CallbackQuery, btn: Button, manager: DialogManager):
-    chat_obj: Chat = manager.start_data.get("chat_obj")
+    chat_obj: ChatModel = manager.start_data.get("chat_obj")
 
     await manager.done()
     await callback.message.answer(

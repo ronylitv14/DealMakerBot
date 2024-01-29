@@ -4,12 +4,14 @@ from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.api.entities import StartMode
 
 from handlers.deals.window_state import CreateDeal, DealsGroup
-from handlers.states_handler import ClientDialog, ExecutorDialog
+from handlers.states_handler import ClientDialog
 from keyboards.clients import create_keyboard_client
 from keyboards.executors import create_keyboard_executor
 
-from database.crud import save_task_to_db, get_executor, get_proposed_deals
-from database.models import TaskStatus, PropositionBy
+from handlers.deals_executor.dialog_states import DealsExecutor
+
+from database_api.components.tasks import TaskStatus, PropositionBy, Tasks, TasksList, TaskModel
+from database_api.components.executors import Executors, ExecutorModel
 
 
 def cancel_dialog_wrapper(func):
@@ -28,30 +30,36 @@ def cancel_dialog_wrapper(func):
 class ButtonCallbacks:
     @staticmethod
     async def create_deal(callback: CallbackQuery, button: Button, manager: DialogManager):
-        # manager.dialog_data["subject_title"] = []
 
         cur_state = manager.dialog_data.get("cur_state")
         state_obj = manager.dialog_data.get("state_obj")
+        proposed_by = manager.dialog_data.get("proposed_by")
 
-        print(cur_state)
-        print(state_obj)
-        await manager.start(
-            state=CreateDeal.choose_nickname,
-            data={
-                "user_id": callback.from_user.id,
-                "cur_state": cur_state,
-                "state_obj": state_obj
-            }
-        )
+        if proposed_by == PropositionBy.client:
+            await manager.start(
+                state=CreateDeal.choose_nickname,
+                data={
+                    "user_id": callback.from_user.id,
+                    "cur_state": cur_state,
+                    "state_obj": state_obj,
+                    "proposed_by": proposed_by
+                },
+                mode=StartMode.RESET_STACK
+            )
+        elif proposed_by == PropositionBy.executor:
+            await manager.start(
+                state=DealsExecutor.query_user,
+                mode=StartMode.RESET_STACK
+            )
 
     @staticmethod
     async def watch_deals(callback: CallbackQuery, button: Button, manager: DialogManager):
-        proposed_by = manager.dialog_data.get("proposed_by")
+        proposed_by = manager.dialog_data.get("proposed_for")
 
-        deals = await get_proposed_deals(
+        deals: TasksList = await Tasks().get_user_proposed_tasks(
             proposed_by=proposed_by,
             user_id=callback.from_user.id
-        )
+        ).do_request()
 
         manager.dialog_data["returned_deals"] = deals
 
@@ -71,30 +79,34 @@ class ButtonCallbacks:
 
     @staticmethod
     async def save_deal(callback: CallbackQuery, button: Button, manager: DialogManager):
-        cur_state = manager.start_data.get("cur_state")
-
         executor_id = manager.dialog_data.get("executor_id")
+        proposed_by = manager.start_data.get("proposed_by")
 
-        executor = await get_executor(executor_id)
+        executor: ExecutorModel = await Executors().get_executor_data(executor_id).do_request()
 
-        await save_task_to_db(
+        task = await Tasks().save_task_data(
             client_id=callback.from_user.id,
-            executor_id=executor.executor_id,
+            executor_id=executor.user_id,
             description=manager.dialog_data.get('desc'),
             price=manager.dialog_data.get('price'),
-            deadline=manager.dialog_data.get('date'),
             subjects=manager.dialog_data.get('subject_title'),
             files=manager.dialog_data.get("docs", []),
             files_type=manager.dialog_data.get("type", []),
             status=TaskStatus.active,
             work_type=manager.dialog_data.get('task_type'),
-            proposed_by=PropositionBy.client if cur_state == ClientDialog.client_state else PropositionBy.executor,
-        )
+            proposed_by=proposed_by,
+        ).do_request()
+
+        if not isinstance(task, TaskModel):
+            await callback.message.answer("Проблеми зі збереженням!")
+            return
 
         await callback.message.answer("Дані успішно збережено! Скоро виконавець отримає ваше повідомлення!")
         await callback.bot.send_message(
             chat_id=manager.dialog_data.get("executor_id"),
-            text="<b>У вас є нові запропоновані угоди! Перевірте їх у розділі 'Угоди'</b>",
+            text="🌟 <b>У вас є нові запропоновані угоди!</b> 🌟"
+                 "Перевірте їх у розділі <b>‘Угоди’</b> тільки у меню <i>виконавця</i>. "
+                 "Не пропустіть цю можливість!",
             parse_mode="HTML"
         )
 

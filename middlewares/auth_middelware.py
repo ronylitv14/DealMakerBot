@@ -1,13 +1,11 @@
-from datetime import datetime
-from typing import Callable, Dict, Any, Awaitable
+from typing import Callable, Dict, Any, Awaitable, Optional
 
 from aiogram import BaseMiddleware
-from aiogram.dispatcher.flags import get_flag
 
-from aiogram.types import Message, CallbackQuery, KeyboardButton, ReplyKeyboardMarkup, TelegramObject
+from aiogram.types import CallbackQuery, KeyboardButton, ReplyKeyboardMarkup
 
-from database.crud import get_user_auth, get_executor_auth
-from database.models import Executor, ProfileStatus
+from database_api.components.users import Users, UserResponse
+from database_api.components.executors import Executors, ExecutorModel, ProfileStatus
 
 
 class InnerAuthMiddleware(BaseMiddleware):
@@ -17,9 +15,9 @@ class InnerAuthMiddleware(BaseMiddleware):
             event: CallbackQuery,
             data: Dict[str, Any]
     ) -> Any:
-        res = await get_user_auth(event.from_user.id)
-
-        if not res:
+        # res = await get_user_auth(event.from_user.id)
+        res: Optional[UserResponse] = await Users().get_user_from_db(event.from_user.id).do_request()
+        if not isinstance(res, UserResponse):
             kbd = [
                 [
                     KeyboardButton(text="Відправити номер", request_contact=True),
@@ -52,7 +50,7 @@ class CheckExecutorExistence(BaseMiddleware):
             data: Dict[str, Any]
     ) -> Any:
 
-        executor_profile: Executor = await get_executor_auth(event.from_user.id)
+        executor_profile: ExecutorModel = await Executors().get_executor_data(event.from_user.id).do_request()
 
         if not executor_profile:
             await event.answer(text="Вашаго профілю поки немає в боті! Потрібно зареєструватись")

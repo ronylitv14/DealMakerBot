@@ -11,14 +11,13 @@ from handlers.creating_executor_profile.window_state import CreatingProfile
 from handlers.creating_executor_profile.dialog_windows import add_dialog_to_router
 from handlers.my_orders.window_state import MyOrders
 from keyboards.executors import create_keyboard_executor
-from middlewares.auth_middelware import CheckExecutorExistence
-from database.crud import get_executor_auth
-from database.models import Executor, ProfileStatus
+
+
+from database_api.components.executors import ProfileStatus, Executors, ExecutorModel
 
 executor_router = Router()
 
 executor_router.message.filter(F.chat.type.in_({ChatType.PRIVATE}))
-# executor_router.message.middleware(CheckExecutorExistence())
 add_dialog_to_router(executor_router)
 
 
@@ -26,9 +25,11 @@ add_dialog_to_router(executor_router)
     F.text.contains("📖"),
 )
 async def get_executor_menu(message: types.Message, state: FSMContext, dialog_manager: DialogManager):
-    executor: Executor = await get_executor_auth(message.from_user.id)
+
+    executor: ExecutorModel = await Executors().get_executor_data(message.from_user.id).do_request()
+
     await state.set_data({"executor": executor})
-    if not executor:
+    if not isinstance(executor, ExecutorModel):
         await message.answer(
             text="Перевірка на присутність у базі даних виконавців",
             reply_markup=types.ReplyKeyboardRemove()

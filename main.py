@@ -3,15 +3,10 @@ import os
 import sys
 
 from dotenv import load_dotenv
-from typing import AnyStr
+
 from aiogram import Dispatcher, Bot
-from aiogram.enums import MenuButtonType
-from aiogram.client.telegram import TelegramAPIServer
-from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.filters.command import Command
 from aiogram import types
-from aiogram.fsm.storage.memory import DisabledEventIsolation
 from aiogram_dialog import setup_dialogs
 from handlers.users_joining_handler import joining_users_router
 from handlers.auth_handler import auth_router
@@ -40,13 +35,13 @@ async def main():
     chat_bot = Bot(token=CHAT_BOT_TOKEN)
 
     types_command = [
-        types.BotCommand(command="menu", description="create menu"),
-        types.BotCommand(command="ticket", description="create ticket")
+        types.BotCommand(command="menu", description="Відкрити меню команд"),
+        types.BotCommand(command="ticket", description="Створити тікет")
     ]
 
     chat_types_command = [
-        types.BotCommand(command="get_chat", description="start another chat"),
-        types.BotCommand(command="pay", description="оплата замовлення")
+        types.BotCommand(command="get_chat", description="Отримати меню з усіма чатами"),
+        types.BotCommand(command="pay", description="Оплата замовлення")
     ]
 
     dp.include_routers(
@@ -64,12 +59,6 @@ async def main():
 
     await bot.set_my_commands(types_command)
     await chat_bot.set_my_commands(chat_types_command)
-    #
-    # await bot.delete_webhook(drop_pending_updates=False)
-    # await chat_bot.delete_webhook(drop_pending_updates=False)
-    # await dp.start_polling(bot)
-    # await dp_chat.start_polling(chat_bot)
-
     await asyncio.gather(
         dp.start_polling(bot),
         dp_chat.start_polling(chat_bot)

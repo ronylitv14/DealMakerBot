@@ -1,15 +1,14 @@
 import os
 
 import aiohttp
-import asyncio
 from typing import Optional
-import json
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 X_TOKEN = os.getenv('X_TOKEN')
+
 
 class HeaderInfo:
     def __init__(self, x_token: str, x_cms: Optional[str] = None, x_cms_version: Optional[str] = None):
@@ -27,7 +26,8 @@ class HeaderInfo:
 
 
 class BodyInfo:
-    def __init__(self, amount: int, redirect_url: str, webhook_url: str, ccy: int = 980, validity: Optional[int] = None,
+    def __init__(self, amount: int, webhook_url: str, redirect_url: Optional[str] = None, ccy: int = 980,
+                 validity: Optional[int] = None,
                  payment_type: str = "debit"):
         self.amount = amount
         self.ccy = ccy
@@ -47,4 +47,7 @@ async def get_invoice_payment_link(header_info: HeaderInfo, body_info: BodyInfo)
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=body) as response:
+            if response.status not in [200, 201]:
+                print("Error")
+                raise ValueError("Error with creating invoice!")
             return await response.json()
