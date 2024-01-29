@@ -1,7 +1,5 @@
 import operator
-from typing import Any
 
-from aiogram_dialog.widgets.kbd import ManagedCounter
 from aiogram.types import CallbackQuery
 from aiogram.enums import ContentType
 
@@ -10,25 +8,23 @@ from aiogram_dialog.widgets.kbd import Button, Start, Back, Select, Column
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.input import MessageInput
 
-from .button_callbacks import ButtonCallbacks
-from .window_state import WithdrawingMoneySub
+from handlers.balance.button_callbacks import ButtonCallbacks, WithdrawCallbacks
+from handlers.balance.window_state import WithdrawingMoneySub
 
 
 async def on_card_selected(callback: CallbackQuery, widget: Select,
                            manager: DialogManager, item_id: str):
-    if item_id != "0":
-        await callback.answer(
-            text="Обрано карту!"
+    if item_id == "-1":
+        return await callback.answer(
+            text="На даний момент у системі немає ваших карток! Введіть самостійно номер банківської карти!"
         )
-        upd_cards = manager.dialog_data.get("updated_cards")
-        manager.dialog_data["withdrawal_card"] = upd_cards[int(item_id) - 1][0]
-        await manager.switch_to(WithdrawingMoneySub.accept_withdraw)
-    else:
-        print(manager.dialog_data)
 
-        await callback.answer(
-            text="Карток немає"
-        )
+    await callback.answer(
+        text="Обрано карту!"
+    )
+    upd_cards = manager.dialog_data.get("updated_cards")
+    manager.dialog_data["withdrawal_card"] = upd_cards[int(item_id)][0]
+    await manager.switch_to(WithdrawingMoneySub.accept_withdraw)
 
 
 class TelegramInputs:
@@ -71,3 +67,5 @@ class TelegramBtns:
     btn_cancel = Button(Const("Відмінити"), id="b_cancel", on_click=ButtonCallbacks.cancel_balance_dialog)
     btn_cancel_subdialog = Button(Const("Відмінити"), id="b_cancel_sub", on_click=ButtonCallbacks.cancel_subdialog)
     btn_accept_withdraw = Button(Const("Підтвердити"), id="b_accept_w", on_click=ButtonCallbacks.accept_withdraw)
+    btn_withdraw_all_money = Button(Const("Вивести все"), id="b_withdraw_all",
+                                    on_click=WithdrawCallbacks.withdraw_all_money)
