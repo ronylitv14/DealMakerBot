@@ -3,7 +3,7 @@ from aiogram_dialog.widgets.kbd import Back, Button, Next
 from aiogram_dialog.widgets.text import Const
 from aiogram.enums.content_type import ContentType
 
-from .button_callbacks import ButtonCallbacks
+from handlers.auth_users.button_callbacks import ButtonCallbacks
 
 
 class TelegramInputs:
@@ -32,4 +32,3 @@ class TelegramButtons:
     btn_back = Back(Const("Назад"))
     btn_cancel = Button(Const("Відмінити"), id="id_cancel", on_click=ButtonCallbacks.cancel_auth)
     btn_skip = Next(Const("Пропустити"), id="id_skip")
-    btn_save = Button(Const("Зберегти"), id="id_save", on_click=ButtonCallbacks.save_auth)

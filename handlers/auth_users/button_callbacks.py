@@ -1,12 +1,14 @@
 from aiogram.types import Message, CallbackQuery
-
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.dialog import DialogManager
 
-from .window_state import AuthStates
-from database.crud import save_user_to_db, create_user_balance
-from keyboards.clients import create_keyboard_client
+from handlers.auth_users.window_state import AuthStates
+
+from database_api.components.users import Users
+from database_api.components.balance import Balance
+
+from keyboards.executor_auth_keyboard import create_inline_keyboard_executor_auth
 from handlers.utils.email_utils import is_valid_email
 
 
@@ -38,18 +40,6 @@ class ButtonCallbacks:
                 parse_mode="HTML"
             )
 
-        # await save_user_to_db(
-        #     telegram_id=message.from_user.id,
-        #     username=manager.dialog_data["username"],
-        #     phone=manager.dialog_data["phone"],
-        #     email=email
-        # )
-        # await manager.done()
-        # await message.answer(
-        #     text="Ваші дані успішно збережені",
-        #     reply_markup=create_keyboard_client()
-        # )
-
     @staticmethod
     async def process_password(message: Message, input_widget: MessageInput, manager: DialogManager):
         password = message.text
@@ -65,22 +55,27 @@ class ButtonCallbacks:
     async def save_user_data(message: Message, input_widget: MessageInput, manager: DialogManager):
 
         if manager.dialog_data["first_password"] == message.text:
-            saved_user = await save_user_to_db(
+
+            response = await Users().create_user(
                 telegram_id=message.from_user.id,
+                user_email=manager.dialog_data.get("email"),
                 username=manager.dialog_data["username"],
                 phone=manager.dialog_data["phone"],
                 password=message.text,
                 chat_id=message.chat.id,
                 tg_username=manager.dialog_data.get("tg_username")
-            )
+            ).do_request()
 
-            if saved_user:
+            if response.is_success:
                 await manager.done()
-                await create_user_balance(user_id=message.from_user.id)
+                await Balance().post_user_balance(user_id=message.from_user.id).do_request()
+
                 await message.answer(
-                    text="Ваші дані успішно збережені",
-                    reply_markup=create_keyboard_client()
+                    text="Ваші дані успішно збережено!\n\n"
+                         "Ви можете пройти реєстрацію на виконавця у нашій системі. Чи бажаєте ви зробити це зараз?",
+                    reply_markup=create_inline_keyboard_executor_auth()
                 )
+
             else:
                 await message.answer(
                     text="Виникла помилка при збережені"
@@ -97,11 +92,3 @@ class ButtonCallbacks:
             text="Гаразд! Ваша реєстрація відмінена"
         )
         await manager.done()
-
-    @staticmethod
-    async def save_auth(callback: CallbackQuery, button: Button, manager: DialogManager):
-        await manager.done()
-        await callback.message.answer(
-            text="Ваші дані успішно збережено!",
-            reply_markup=create_keyboard_client()
-        )
