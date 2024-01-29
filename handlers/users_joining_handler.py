@@ -1,12 +1,8 @@
 import os
-import random
 from dotenv import load_dotenv
 
-from aiogram.filters.command import Command, CommandObject
 from aiogram import F, Bot
 from aiogram.types import Message
-from aiogram.enums import DiceEmoji
-from aiogram.methods.send_dice import SendDice
 from aiogram.filters.chat_member_updated import ChatMemberUpdatedFilter, JOIN_TRANSITION, ChatMemberUpdated
 from aiogram.enums import ChatType
 from aiogram.dispatcher.router import Router
@@ -56,13 +52,11 @@ async def check_for_new_messages(message: Message, bot: Bot):
     )
 
     if message.from_user.id == chat_obj.executor_id and not is_active:
-        print("Checking for new messages")
 
         is_delayed = await compare_notification_time(
             int(db_chat_id),
             compare_time=5
         )
-        print("Getting delay data")
 
         if is_delayed:
             print("Inside sending notifications!")
