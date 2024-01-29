@@ -6,6 +6,11 @@ from aiogram_dialog.widgets.kbd import Back, Cancel, Row
 from handlers.admin_panel.window_states import *
 from handlers.admin_panel.window_widgets import TelegramBtns, TelegramInputs
 
+from database_api.components.executors import ExecutorsList
+from database_api.components.users import UserResponseList
+from database_api.components.withdrawals import WithdrawalRequestList
+from database_api.components.tickets import TicketsList
+
 application_text = Format("Ім'я користувача: {dialog_data[username]}\n"
                           "Нік в телеграм: @{dialog_data[tg_username]}\n\n"
                           "Теги для виконавця: \n\n{dialog_data[tags]}\n\n"
@@ -26,12 +31,13 @@ def create_cancel_button(btn_text: str):
 
 async def get_applications_data(**kwargs):
     manager: DialogManager = kwargs.get("dialog_manager")
-    applications = manager.start_data.get("applications")
+    applications: ExecutorsList = manager.start_data.get("applications")
 
     displayed_result = []
 
-    for ind, application in enumerate(applications):
-        displayed_result.append((application, ind))
+    if isinstance(applications, ExecutorsList):
+        for ind, application in enumerate(applications):
+            displayed_result.append((application, ind))
 
     return {
         "applications": displayed_result if displayed_result else [("Немає заявок", -1)]
@@ -40,12 +46,12 @@ async def get_applications_data(**kwargs):
 
 async def get_users_data(**kwargs):
     manager: DialogManager = kwargs.get("dialog_manager")
-    users = manager.start_data.get("users")
+    users: UserResponseList = manager.start_data.get("users")
 
     displayed_result = []
-
-    for ind, user in enumerate(users):
-        displayed_result.append((user, ind))
+    if isinstance(users, UserResponseList):
+        for ind, user in enumerate(users):
+            displayed_result.append((user, ind))
 
     return {
         "users": displayed_result if displayed_result else [("Немає користувачів", -1)]
@@ -57,9 +63,9 @@ async def get_requests_data(**kwargs):
     requests = manager.start_data.get("requests")
 
     displayed_result = []
-
-    for ind, request in enumerate(requests):
-        displayed_result.append((request, ind))
+    if isinstance(requests, WithdrawalRequestList):
+        for ind, request in enumerate(requests):
+            displayed_result.append((request, ind))
 
     return {
         "requests": displayed_result if displayed_result else [("Немає заявок", -1)]
@@ -71,9 +77,9 @@ async def get_tickets_data(**kwargs):
     tickets = manager.start_data.get("tickets")
 
     displayed_result = []
-
-    for ind, ticket in enumerate(tickets):
-        displayed_result.append((ticket, ind))
+    if isinstance(tickets, TicketsList):
+        for ind, ticket in enumerate(tickets):
+            displayed_result.append((ticket, ind))
 
     return {
         "tickets": displayed_result if displayed_result else [("Немає тікетів", -1)]
@@ -87,6 +93,7 @@ main_window = Window(
     TelegramBtns.btn_users_profiles,
     TelegramBtns.btn_request_applications,
     TelegramBtns.btn_watch_tickets,
+    TelegramBtns.btn_start_inactive_chat_dialog,
     create_cancel_button("Вийти"),
     state=AdminPanel.main_panel
 )
@@ -162,6 +169,8 @@ review_requests_window = Window(
 add_invoice_window = Window(
     Format("Тут потрібно додати № квитанції сплатити грошей для користувача!"),
     TelegramInputs.input_invoice_id,
+    TelegramBtns.btn_save_without_invoice,
+    create_back_button("Вийти"),
     state=WatchMoneyRetrieval.add_invoice_id
 )
 
