@@ -8,19 +8,24 @@ from aiogram_dialog.widgets.kbd import Button
 
 from handlers.states_handler import ClientDialog, ExecutorDialog
 from keyboards.clients import create_profile_instruments
-from database.crud import get_user_auth, update_user_email, update_user_nickname, update_user_phone, delete_user_from_db
-from database.models import User
+from aiogram.fsm.context import FSMContext
+
+from database_api.components.users import Users, UserResponse
+
 from handlers.utils.command_utils import show_menu
 
 PHONE_REGEX = r"^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$"
 
 
-def wrapper(func):
+def enfing_dialog_wrapper(func):
     async def decorator(callback: CallbackQuery, button: Button, manager: DialogManager):
         await func(callback, button, manager)
         cur_state = manager.dialog_data.get("cur_state")
+        state: FSMContext = manager.dialog_data.get("state")
         if manager.dialog_data.get("delete"):
-            return await show_menu(callback.message, manager.dialog_data.get("state"))
+            await show_menu(callback.message, state)
+            await manager.done()
+            return
 
         if cur_state == ClientDialog.profile:
             await callback.message.answer(
@@ -56,7 +61,7 @@ class EmailUpdateStrategy(UpdateStrategy):
             if item.type == "email":
                 email = item.extract_from(message.text)
 
-        manager.dialog_data["update_function"] = update_user_email
+        manager.dialog_data["update_function"] = Users().update_user(user_email=email, telegram_id=message.from_user.id)
         return email
 
 
@@ -70,7 +75,8 @@ class NicknameUpdateStrategy(UpdateStrategy):
             )
             return
 
-        manager.dialog_data["update_function"] = update_user_nickname
+        manager.dialog_data["update_function"] = Users().update_user(nickname=nickname,
+                                                                     telegram_id=message.from_user.id)
         return nickname
 
 
@@ -86,7 +92,7 @@ class PhoneUpdateStrategy(UpdateStrategy):
             return
 
         phone = matched_pattern.group()
-        manager.dialog_data["update_function"] = update_user_phone
+        manager.dialog_data["update_function"] = Users().update_user(phone=phone, telegram_id=message.from_user.id)
         return phone
 
 
@@ -106,7 +112,8 @@ class ButtonCallbacks:
     async def check_password(message: Message, widget: MessageInput, manager: DialogManager):
         user_id = message.from_user.id
         password = message.text
-        user: User = await get_user_auth(user_id)
+
+        user: UserResponse = await Users().get_user_from_db(user_id).do_request()
 
         if not user:
             return await message.answer(
@@ -144,22 +151,22 @@ class ButtonCallbacks:
         )
 
     @staticmethod
-    @wrapper
+    @enfing_dialog_wrapper
     async def save_updated_obj(callback: CallbackQuery, button: Button, manager: DialogManager):
         update_function = manager.dialog_data.get("update_function")
         update_obj = manager.dialog_data.get("updated_obj")
         delete = manager.dialog_data.get("delete")
         if update_function and update_obj:
-            await update_function(
-                callback.from_user.id,
-                update_obj
-            )
+            await update_function.do_request()
         elif delete:
+            resp = await Users().delete_user_from_db(
+                telegram_id=callback.from_user.id
+            ).do_request()
 
-            await delete_user_from_db(
-                user_id=callback.from_user.id
-            )
+            if resp.is_error:
+                await callback.message.answer("Something went wrong!")
+
     @staticmethod
-    @wrapper
+    @enfing_dialog_wrapper
     async def cancel_dialog(callback: CallbackQuery, button: Button, manager: DialogManager):
         pass
