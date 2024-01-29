@@ -1,5 +1,5 @@
 from aiogram import F
-from aiogram import types
+from aiogram import types, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.enums import ContentType, ChatType
 from aiogram.dispatcher.router import Router
@@ -7,9 +7,11 @@ from aiogram.dispatcher.router import Router
 from aiogram_dialog.dialog import DialogManager, Dialog
 from aiogram_dialog.api.entities import StartMode
 
-from .states_handler import ClientDialog
-from .auth_users.window_state import AuthStates
-from .auth_users.dialog_windows import (
+from keyboards.clients import create_keyboard_client
+from handlers.executor_profile_handler import CreatingProfile
+from handlers.states_handler import ClientDialog
+from handlers.auth_users.window_state import AuthStates
+from handlers.auth_users.dialog_windows import (
     username_window,
     email_window,
     first_password_window,
@@ -32,7 +34,7 @@ auth_router.include_routers(auth_dialog)
 @auth_router.message(
     F.contact
 )
-async def auth_user(message: types.Message, state: FSMContext, dialog_manager: DialogManager):
+async def auth_user_to_system(message: types.Message, state: FSMContext, dialog_manager: DialogManager):
     await state.set_state(ClientDialog.client_state)
     await message.answer(
         text="Отримали твій номер телефону!",
@@ -51,4 +53,33 @@ async def cancel_user_auth(message: types.Message, state: FSMContext):
         text="<i>Гаразд! Відміняємо реєстрацію</i>",
         parse_mode="HTML",
         reply_markup=types.ReplyKeyboardRemove()
+    )
+
+
+@auth_router.callback_query(
+    F.data.startswith("accept_executor")
+)
+async def start_creating_executor_dialog(callback: types.CallbackQuery, state: FSMContext,
+                                         dialog_manager: DialogManager, bot: Bot):
+    await dialog_manager.start(state=CreatingProfile.adding_description, mode=StartMode.NORMAL)
+    dialog_manager.dialog_data["cur_state"] = ClientDialog.client_state
+    dialog_manager.dialog_data["state_obj"] = state
+    dialog_manager.dialog_data["docs"] = []
+    dialog_manager.dialog_data["type"] = []
+
+    await callback.answer()
+
+
+@auth_router.callback_query(
+    F.data.startswith("reject_executor")
+)
+async def stop_creating_executor_dialog(callback: types.CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.answer(
+        text="Ваші дані успішно збережені",
+        reply_markup=create_keyboard_client()
+    )
+
+    await bot.delete_message(
+        chat_id=callback.from_user.id,
+        message_id=callback.message.message_id
     )
