@@ -1,9 +1,8 @@
 from aiogram import F
 from aiogram.enums import ChatType
 from aiogram.dispatcher.router import Router
-from aiogram.filters import Command, CommandObject
+from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardRemove
-from aiogram.fsm.context import FSMContext
 
 from aiogram_dialog.dialog import DialogManager
 from aiogram_dialog.api.entities import StartMode
@@ -16,10 +15,7 @@ ticket_router.message.filter(F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, 
 ticket_router.include_routers(create_tickets_dialog())
 
 
-@ticket_router.message(
-    Command("ticket")
-)
-async def create_ticket(message: Message, dialog_manager: DialogManager):
+async def start_ticket_dialog(message: Message, dialog_manager: DialogManager):
     await message.answer(
         text="Перейдемо до створення тікету!",
         reply_markup=ReplyKeyboardRemove()
@@ -29,3 +25,10 @@ async def create_ticket(message: Message, dialog_manager: DialogManager):
         state=Tickets.add_subject,
         mode=StartMode.RESET_STACK
     )
+
+
+@ticket_router.message(
+    Command("ticket")
+)
+async def create_ticket(message: Message, dialog_manager: DialogManager):
+    await start_ticket_dialog(message, dialog_manager)
