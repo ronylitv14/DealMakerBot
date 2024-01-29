@@ -1,8 +1,5 @@
-import asyncio
-
 from aiogram.types import Message, CallbackQuery
-from aiogram.enums import ContentType
-from aiogram_dialog.api.entities import ShowMode
+
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Multiselect
 from aiogram_dialog.dialog import DialogManager
@@ -10,11 +7,10 @@ from aiogram_dialog.widgets.kbd import Button
 
 from keyboards.clients import create_keyboard_client
 from keyboards.executors import create_keyboard_executor
-from handlers.states_handler import ExecutorDialog, ClientDialog
+from handlers.states_handler import ClientDialog
 
 from utils.dialog_categories import subject_titles
-from database.crud import create_executor_profile
-from database.models import FileType
+from database_api.components.executors import Executors
 
 
 class ButtonCallbacks:
@@ -35,13 +31,14 @@ class ButtonCallbacks:
 
     @staticmethod
     async def save_executor_application(callback: CallbackQuery, button: Button, manager: DialogManager):
-        await create_executor_profile(
+
+        await Executors().save_executor_data(
             user_id=callback.from_user.id,
             work_examples=manager.dialog_data.get("docs", []),
             work_files_type=manager.dialog_data.get("type", []),
             description=manager.dialog_data.get("description"),
             tags=manager.dialog_data.get("subjects")
-        )
+        ).do_request()
 
         await callback.message.answer(
             text="<b>Вашу заявку додано! Очікуйте повідомлення про підтвердження!</b>",
