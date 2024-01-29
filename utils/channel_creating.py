@@ -1,24 +1,25 @@
 import os
 import sys
-import asyncio
-import random
 
 from aiogram import types, Bot
 from aiogram.methods import DeleteMessage
 from telethon import TelegramClient
 from telethon import functions
-from telethon.tl.functions.messages import EditMessageRequest
+
 from keyboards.inline_keyboards import create_group_message_keyboard_telethon
 from telethon.types import Updates, ChatBannedRights
-from handlers_chatbot.utils.redis_interaction import deactivate_session
+from utils.redis_utils import deactivate_session
 
-from database.models import TaskStatus, GroupMessage
-from database.crud import get_group_message, save_chat_data, update_group_title
+from database_api.components.tasks import TaskStatus
+from database_api.components.group_messages import GroupMessages, GroupMessageResponse
+from database_api.components.chats import Chats, ChatModel
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-TELEGRAM_USER = ["admin.session", "admin2.session", "admin3.session"]
+ADMIN_SESSIONS_DIR = os.getenv("ADMIN_SESSIONS_DIR")
+TELEGRAM_USER = [os.path.join(ADMIN_SESSIONS_DIR, i) for i in os.listdir(ADMIN_SESSIONS_DIR)]
 TELEGRAM_APP_API_ID = int(os.getenv("TELEGRAM_APP_API_ID"))
 TELEGRAM_APP_API_HASH = os.getenv("TELEGRAM_APP_API_HASH")
 
@@ -79,7 +80,8 @@ MSG_STATUS_EMOJI = {
 
 
 async def create_new_message_text(task_id: int, new_status: TaskStatus):
-    group_msg: GroupMessage = await get_group_message(task_id)
+    # group_msg: GroupMessage = await get_group_message(task_id)
+    group_msg: GroupMessageResponse = await GroupMessages().get_group_message_by_task(task_id).do_request()
     edited_msg = "#" + group_msg.message_text.split(sep="#", maxsplit=1)[1]
     edited_msg = f"{MSG_STATUS_EMOJI[new_status]} {new_status.value}\n\n" + edited_msg
 
@@ -173,27 +175,40 @@ async def get_chat_invite_link(chat_id: int, admin_name: str):
 
 
 async def edit_telegram_message(task_id: int, is_active: bool, new_status: TaskStatus):
-    async with TelegramClient(BOT_TOKEN, TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH) as client:
+    async with TelegramClient('bot_deals', TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH) as bot:
         new_text, message_id, has_files = await create_new_message_text(task_id=task_id, new_status=new_status)
+        reply_markup = create_group_message_keyboard_telethon(
+            task_id=task_id,
+            has_files=has_files,
+            is_active=is_active
+        )
 
-        await client(EditMessageRequest(
-            peer=TG_GROUPNAME,
-            id=message_id,
-            message=new_text,
-            reply_markup=create_group_message_keyboard_telethon(
-                task_id=task_id,
-                has_files=has_files,
-                is_active=is_active
+        await bot(
+            functions.messages.EditMessageRequest(
+                peer=TG_GROUPNAME,
+                message=new_text,
+                id=message_id,
+                reply_markup=reply_markup if reply_markup.rows else None
             )
-        ))
+        )
+
+
+async def send_bot_message(msg: str, user_id: int, bot_session: str = "bot_deals", reply_markup=None):
+    async with TelegramClient(bot_session, TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH) as bot:
+        await bot.send_message(
+            user_id,
+            msg,
+            parse_mode="HTML",
+            buttons=reply_markup
+        )
 
 
 async def send_bot_single_inline_message(
         chat_id: int,
         msg_text: str,
-        btn_text: str,
         url: str,
-        bot: Bot
+        bot: Bot,
+        btn_text: str = "Перейти до чату",
 ):
     await bot.send_message(
         chat_id=chat_id,
@@ -240,7 +255,7 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
 
     link = await get_chat_invite_link(chat_id=chat_id, admin_name=chat_admin)
 
-    new_chat = await save_chat_data(
+    new_chat: ChatModel = await Chats().save_chat_data(
         chat_id=chat_id,
         invite_link=link,
         participants_count=4,
@@ -249,9 +264,9 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
         executor_id=executor_id,
         client_id=client_id,
         chat_admin=chat_admin
-    )
+    ).do_request()
 
-    if not new_chat:
+    if not isinstance(new_chat, ChatModel):
         return await callback.answer("Помилка при створенні чату!")
 
     await change_chat_title(
@@ -270,7 +285,7 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
         chat_id=int(client_id),
         msg_text=msg_text_client,
         btn_text="Перейти до чату",
-        url=f"https://t.me/dealmakerchatbot?start=chat-{new_chat.id}",
+        url=f"{CHAT_BOT_URL}?start=chat-{new_chat.id}",
         bot=bot
     )
 
@@ -291,7 +306,7 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
         )
     )
 
-    await update_group_title(
+    await Chats().update_group_title(
         db_chat_id=new_chat.id,
         group_name=f"Угода №{new_chat.id}"
-    )
+    ).do_request()
