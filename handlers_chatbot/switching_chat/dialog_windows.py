@@ -17,7 +17,7 @@ async def chats_getter(**kwargs):
         preprocessed_chat_btns.append((chat, ind))
 
     return {
-        "chats": preprocessed_chat_btns
+        "chats": preprocessed_chat_btns if preprocessed_chat_btns else [("Доступних чатів немає", -1)]
     }
 
 
