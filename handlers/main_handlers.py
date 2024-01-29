@@ -1,27 +1,25 @@
-import asyncio
-import datetime
-import os
-
 from aiogram.filters import Command, CommandObject
-from aiogram import types, F, flags, Bot
+from aiogram import types
 from aiogram.fsm.context import FSMContext
 from aiogram.dispatcher.router import Router
 from aiogram_dialog.dialog import DialogManager
 
-from .orders_handler import order_router
-from .balance_handler import balance_router
-from .profile_handler import profile_router
-from .utils.start_action_handler import HandleAction, ACTIONS
+from handlers.orders_handler import order_router
+from handlers.balance_handler import balance_router
+from handlers.profile_handler import profile_router
+from handlers.utils.start_action_handler import HandleAction, ACTIONS
 from handlers.executor_profile_handler import executor_router
 from handlers.deals_handler import deals_router
 from handlers.send_client_msg.dialog_windows import msg_dialog
 from handlers.admin_handler import admin_panel_router
 from handlers.tickets_handler import ticket_router
 from handlers.menu_handler import menu_router
+from handlers.review_handler import review_router
 
-from aiogram_dialog.api.exceptions import UnknownState, UnknownIntent, OutdatedIntent
+from aiogram_dialog.api.exceptions import UnknownIntent, OutdatedIntent
 from middlewares.auth_middelware import InnerAuthMiddleware
 from middlewares.rate_limits import RateLimitMiddleware
+from middlewares.close_dialog_mw import CloseDialogMiddleware
 
 main_router = Router()
 main_router.include_routers(
@@ -34,16 +32,17 @@ main_router.include_routers(
     msg_dialog,
     ticket_router,
     menu_router,
+    review_router
 )
 main_router.message.middleware(InnerAuthMiddleware())
+main_router.message.middleware(CloseDialogMiddleware())
 main_router.callback_query.middleware(RateLimitMiddleware())
 
 
 @main_router.error()
 async def handle_outdated_intent(event: types.ErrorEvent):
-    if isinstance(event.exception, UnknownIntent):
-        return event.update.callback_query.answer("Вибачте, зараз не можливо виконати такий запит!")
-
+    if isinstance(event.exception, UnknownIntent) or isinstance(event.exception, OutdatedIntent):
+        return await event.update.callback_query.answer("Вибачте, зараз не можливо виконати такий запит!")
     raise event.exception
 
 
