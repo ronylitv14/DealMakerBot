@@ -25,11 +25,11 @@ class Balance(BaseAPI):
     def get_user_balance(self, user_id: int):
         url = f"{self.component_path}/{user_id}"
         self.response_model = BalanceModel
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)
 
     def post_user_balance(self, user_id: int):
         url = f"{self.component_path}/{user_id}"
-        return self.construct_params(method=HttpMethod.POST, url=url)
+        return self._construct_params(method=HttpMethod.POST, url=url)
 
     def update_user_cards(self, user_id: int, card: str):
         url = f"{self.component_path}/user-cards/"
@@ -37,7 +37,7 @@ class Balance(BaseAPI):
             "user_id": user_id,
             "card": card
         }
-        return self.construct_params(method=HttpMethod.PATCH, url=url, json=json)
+        return self._construct_params(method=HttpMethod.PATCH, url=url, json=json)
 
     def reset_user_balance(self, user_id: int, new_amount: decimal.Decimal):
         url = f"{self.component_path}/new/"
@@ -45,7 +45,7 @@ class Balance(BaseAPI):
             "user_id": user_id,
             "new_amount": float(new_amount)
         }
-        return self.construct_params(method=HttpMethod.PATCH, url=url, json=json)
+        return self._construct_params(method=HttpMethod.PATCH, url=url, json=json)
 
     def perform_fund_transfer(self, user_id: int, amount: decimal.Decimal, action: BalanceAction):
         url = f"{self.component_path}/fund-transfer/"
@@ -55,4 +55,4 @@ class Balance(BaseAPI):
             "amount": float(amount),
             "action": action
         }
-        return self.construct_params(method=HttpMethod.PATCH, url=url, json=json)
+        return self._construct_params(method=HttpMethod.PATCH, url=url, json=json)

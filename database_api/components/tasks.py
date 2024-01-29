@@ -2,7 +2,7 @@ import datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 from urllib.parse import urlencode
-from database_api.base import BaseAPI, HttpMethod
+from database_api.base import BaseAPI, HttpMethod, APIListObject
 from database_api.components.users import UserResponse
 import enum
 
@@ -19,9 +19,9 @@ class FileType(enum.StrEnum):
 
 
 class PropositionBy(enum.StrEnum):
-    executor: str = "Executor"
-    client: str = "Client"
-    public: str = "Public"
+    executor: str = "executor"
+    client: str = "client"
+    public: str = "public"
 
 
 class UserStatus(enum.StrEnum):
@@ -42,7 +42,7 @@ class TaskModel(BaseModel):
     client_id: Optional[int] = None
     status: TaskStatus
     price: str
-    date_added: datetime
+    date_added: Optional[datetime.datetime] = None
     deadline: Optional[datetime.date] = None
     proposed_by: PropositionBy
     files: Optional[List[str]] = None
@@ -51,8 +51,17 @@ class TaskModel(BaseModel):
     subjects: List[str]
     work_type: List[str]
 
+    def __str__(self):
+        str_subjects = "-".join(self.subjects)
+        return f"Замовлення #{self.task_id}, {str_subjects}"
 
-class TasksList(BaseModel):
+    def create_task_summary(self):
+        str_subjects = "#" + " #".join([task_subject.replace(" ", "_") for task_subject in self.subjects])
+        str_work_type = "#" + " #".join([task_type.replace(" ", "_") for task_type in self.work_type])
+        return f"Номер замовлення: {self.task_id}\nПредмет(и): {str_subjects}\nВид роботи: {str_work_type}\n\nОпис завдання:\n{self.description}"
+
+
+class TasksList(APIListObject):
     list_values: List[TaskModel]
 
 
@@ -62,10 +71,11 @@ class Tasks(BaseAPI):
         self.component_path = f"{self.base_url}/tasks"
 
     def save_task_data(self, client_id: int, status: TaskStatus, price: str, subjects: List[str],
-                       work_type: List[str], proposed_by: PropositionBy, executor_id: int,
+                       work_type: List[str], executor_id: Optional[int] = None,
+                       proposed_by: PropositionBy = PropositionBy.public,
                        files: Optional[List[str]] = None, files_type: Optional[List[FileType]] = None,
                        description: Optional[str] = None,
-                       deadline: Optional[datetime.datetime] = datetime.datetime.now()):
+                       deadline: Optional[datetime.date] = datetime.date.today()):
         url = f"{self.component_path}/"
         json = {
             "client_id": client_id,
@@ -73,7 +83,7 @@ class Tasks(BaseAPI):
             "price": price,
             "subjects": subjects,
             "work_type": work_type,
-            "deadline": deadline,
+            "deadline": str(deadline),
             "files": files,
             "files_type": files_type,
             "description": description,
@@ -81,37 +91,37 @@ class Tasks(BaseAPI):
             "executor_id": executor_id
         }
         self.response_model = TaskModel
-        return self.construct_params(method=HttpMethod.POST, url=url, json=json)
+        return self._construct_params(method=HttpMethod.POST, url=url, json=json)
 
-    def get_all_user_tasks(self, user_id: int, user_type: UserType, task_status: TaskStatus,
+    def get_all_user_tasks(self, user_id: int, user_type: UserType, task_status: List[TaskStatus],
                            task_id: Optional[int] = None):
         url = f"{self.component_path}/"
         query_params = dict(user_id=user_id, user_type=user_type, task_status=task_status, task_id=task_id)
         if task_id is None:
             query_params = dict(user_id=user_id, user_type=user_type, task_status=task_status)
 
-        url = url + "?" + urlencode(query_params)
+        url = url + "?" + urlencode(query_params, doseq=True)
         self.response_model = TasksList
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)
 
     def update_task_status(self, task_id: int, new_task_status: TaskStatus):
         url = f"{self.component_path}/status/{task_id}"
         json = {
             "status": new_task_status
         }
-        return self.construct_params(method=HttpMethod.PATCH, url=url, json=json)
+        return self._construct_params(method=HttpMethod.PATCH, url=url, json=json)
 
     def get_task_data(self, task_id: int):
         url = f"{self.component_path}/{task_id}"
         self.response_model = TaskModel
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)
 
     def get_user_by_task(self, task_id: int):
         url = f"{self.component_path}/client-by-task/{task_id}"
         self.response_model = UserResponse
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)
 
     def get_user_proposed_tasks(self, user_id: int, proposed_by: PropositionBy):
         url = f"{self.component_path}/proposed-deals/{user_id}/{proposed_by}"
         self.response_model = TasksList
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)

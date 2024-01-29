@@ -28,9 +28,9 @@ class GroupMessages(BaseAPI):
             "message_text": message_text,
             "has_files": has_files
         }
-        return self.construct_params(method=HttpMethod.POST, url=url, json=json)
+        return self._construct_params(method=HttpMethod.POST, url=url, json=json)
 
     def get_group_message_by_task(self, task_id: int):
         url = f"{self.component_path}/{task_id}"
         self.response_model = GroupMessageResponse
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)

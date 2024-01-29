@@ -2,7 +2,7 @@ import datetime
 from typing import Optional, List
 from urllib.parse import urlencode
 from pydantic import BaseModel, ConfigDict
-from database_api.base import BaseAPI, HttpMethod, RequestParams
+from database_api.base import BaseAPI, HttpMethod, APIListObject
 
 import enum
 
@@ -20,13 +20,16 @@ class UserTicketModel(BaseModel):
     subject: str
     description: str
     status: TicketStatus
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: datetime.datetime
+    updated_at: Optional[datetime.datetime] = None
     response: Optional[str] = None
     responded_by: Optional[int] = None
 
+    def __str__(self):
+        return f"Номер тікету: {self.ticket_id}, Предмет тікету: {self.subject}"
 
-class TicketsList(BaseModel):
+
+class TicketsList(APIListObject):
     list_values: List[UserTicketModel]
 
 
@@ -43,13 +46,13 @@ class Tickets(BaseAPI):
             "description": description,
             "subject": subject
         }
-        return self.construct_params(method=HttpMethod.POST, url=url, json=json)
+        return self._construct_params(method=HttpMethod.POST, url=url, json=json)
 
-    def get_ticket_json(self, ticket_status: TicketStatus):
+    def get_ticket_json(self, ticket_status: TicketStatus = TicketStatus.open):
         url = f"{self.component_path}/"
         url = url + "?" + urlencode(dict(ticket_status=ticket_status))
         self.response_model = TicketsList
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)
 
     def update_ticket_status(self, ticket_id: int, new_status: TicketStatus, admin_id: int):
         url = f"{self.component_path}/{ticket_id}"
@@ -57,4 +60,4 @@ class Tickets(BaseAPI):
             "new_status": new_status,
             "admin_id": admin_id
         }
-        return self.construct_params(method=HttpMethod.PATCH, url=url, json=json)
+        return self._construct_params(method=HttpMethod.PATCH, url=url, json=json)

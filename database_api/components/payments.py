@@ -20,22 +20,22 @@ class Payments(BaseAPI):
             "receiver_id": receiver_id,
             "sender_id": sender_id,
             "task_id": task_id,
-            "amount": amount
+            "amount": float(amount)
         }
         self.response_model = TransactionModel
-        return self.construct_params(method=HttpMethod.POST, url=url, json=json)
+        return self._construct_params(method=HttpMethod.POST, url=url, json=json)
 
     def check_payment_status(self, task_id: int, receiver_id: int, sender_id: int):
         url = f"{self.component_path}/{task_id}/{receiver_id}/{sender_id}"
         self.response_model = SuccessModel
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)
 
-    def accept_offer(self, transaction_id: int, task_id: int, receiver_id: int, amount: decimal.Decimal):
+    def accept_offer(self, transaction_id: int, task_id: int, receiver_id: int, amount: decimal.Decimal = None):
         url = f"{self.component_path}/accept-offer"
         json = {
             "transaction_id": transaction_id,
             "task_id": task_id,
             "receiver_id": receiver_id,
-            "amount": amount
+            # "amount": float(amount)
         }
-        return self.construct_params(method=HttpMethod.POST, url=url, json=json)
+        return self._construct_params(method=HttpMethod.POST, url=url, json=json)

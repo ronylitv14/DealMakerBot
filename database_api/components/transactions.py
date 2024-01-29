@@ -1,7 +1,7 @@
 import datetime
 import decimal
 from typing import Optional, List
-from database_api.base import BaseAPI, HttpMethod
+from database_api.base import BaseAPI, HttpMethod, APIListObject
 from pydantic import BaseModel, condecimal, ConfigDict
 import enum
 
@@ -20,7 +20,7 @@ class TransactionStatus(enum.StrEnum):
 
 class TransactionModel(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
-    transaction_id: int
+    transaction_id: Optional[int] = None
     invoice_id: str
     sender_id: Optional[int] = None
     receiver_id: Optional[int] = None
@@ -29,10 +29,10 @@ class TransactionModel(BaseModel):
     commission: Optional[condecimal(max_digits=10, decimal_places=2)] = 0.00
     transaction_type: TransactionType
     transaction_status: TransactionStatus
-    transaction_date: Optional[datetime] = None
+    transaction_date: Optional[datetime.datetime] = None
 
 
-class TransactionList(BaseModel):
+class TransactionList(APIListObject):
     list_values: List[TransactionModel]
 
 
@@ -47,19 +47,22 @@ class Transactions(BaseAPI):
                               transaction_status: TransactionStatus,
                               sender_id: Optional[int] = None,
                               receiver_id: Optional[int] = None,
-                              task_id: Optional[int] = None):
+                              task_id: Optional[int] = None,
+                              commission: Optional[decimal.Decimal] = None,
+                              *args, **kwargs):
         url = f"{self.component_path}/"
 
         json = {
             "invoice_id": invoice_id,
-            "amount": amount,
+            "amount": float(amount),
             "transaction_type": transaction_type,
             "transaction_status": transaction_status,
             "sender_id": sender_id,
             "receiver_id": receiver_id,
-            "task_id": task_id
+            "task_id": task_id,
+            "commission": float(commission) if commission is not None else None
         }
-        return self.construct_params(method=HttpMethod.POST, url=url, json=json)
+        return self._construct_params(method=HttpMethod.POST, url=url, json=json)
 
     def update_transaction_status(self, invoice_id: str, new_status: TransactionStatus):
         url = f"{self.component_path}/"
@@ -67,9 +70,9 @@ class Transactions(BaseAPI):
             "invoice_id": invoice_id,
             "new_status": new_status
         }
-        return self.construct_params(method=HttpMethod.PATCH, url=url, json=json)
+        return self._construct_params(method=HttpMethod.PATCH, url=url, json=json)
 
     def get_user_transactions(self, user_id: int):
         url = f"{self.component_path}/{user_id}"
         self.response_model = TransactionList
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        return self._construct_params(method=HttpMethod.GET, url=url)

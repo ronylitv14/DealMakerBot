@@ -2,15 +2,15 @@ import datetime
 import decimal
 from typing import Optional, List
 from pydantic import BaseModel, condecimal, ConfigDict
-from database_api.base import BaseAPI, HttpMethod, RequestParams
+from database_api.base import BaseAPI, HttpMethod, APIListObject
 
 import enum
 
 
 class WithdrawalStatus(enum.StrEnum):
-    pending: str = "Pending"
-    processed: str = "Processed"
-    rejected: str = "Rejected"
+    pending: str = "pending"
+    processed: str = "processed"
+    rejected: str = "rejected"
 
 
 class WithdrawalRequestModel(BaseModel):
@@ -19,16 +19,19 @@ class WithdrawalRequestModel(BaseModel):
     user_id: int
     amount: condecimal(max_digits=10, decimal_places=2)
     commission: condecimal(max_digits=10, decimal_places=2)
-    request_date: datetime
+    request_date: datetime.datetime = datetime.datetime.now
     status: WithdrawalStatus
     payment_method: str
     payment_details: Optional[str] = None
-    processed_date: Optional[datetime] = None
+    processed_date: Optional[datetime.datetime] = None
     admin_id: Optional[int] = None
     notes: Optional[str] = None
 
+    def __str__(self):
+        return f"Номер заявки: {self.request_id}, Заявка на виплату: {self.amount} + {self.commission}"
 
-class WithdrawalRequestList(BaseModel):
+
+class WithdrawalRequestList(APIListObject):
     list_values: List[WithdrawalRequestModel]
 
 
@@ -48,11 +51,12 @@ class Withdrawals(BaseAPI):
             "status": status,
             "payment_method": payment_method
         }
-        return self.construct_params(method=HttpMethod.POST, url=url, json=json)
+        return self._construct_params(method=HttpMethod.POST, url=url, json=json)
 
-    def get_withdrawals_data(self, status: WithdrawalStatus):
+    def get_withdrawals_data(self, status: WithdrawalStatus = WithdrawalStatus.pending):
         url = f"{self.component_path}/{status}"
-        return self.construct_params(method=HttpMethod.GET, url=url)
+        self.response_model = WithdrawalRequestList
+        return self._construct_params(method=HttpMethod.GET, url=url)
 
     def update_withdrawal_request(self, request_id: int, new_status: WithdrawalStatus, admin_id: int):
         url = f"{self.component_path}/"
@@ -60,7 +64,7 @@ class Withdrawals(BaseAPI):
         json = {
             "request_id": request_id,
             "new_status": new_status,
-            "admin_id": admin_id
+            "admin_id": admin_id,
+            # "processed_time": processed_date
         }
-        self.response_model = WithdrawalRequestList
-        return self.construct_params(method=HttpMethod.PATCH, json=json, url=url)
+        return self._construct_params(method=HttpMethod.PATCH, json=json, url=url)
