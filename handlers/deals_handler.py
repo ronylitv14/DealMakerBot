@@ -1,11 +1,11 @@
 from aiogram import F
-from aiogram.filters import or_f, and_f
+from aiogram.filters import or_f
 from aiogram.enums import ChatType
 from aiogram.types import Message, ReplyKeyboardRemove
 from aiogram.dispatcher.router import Router
 from aiogram.fsm.context import FSMContext
 
-from aiogram_dialog.api.entities import StartMode, ShowMode
+from aiogram_dialog.api.entities import StartMode
 from aiogram_dialog.dialog import DialogManager
 
 from handlers.states_handler import ClientDialog, ExecutorDialog
