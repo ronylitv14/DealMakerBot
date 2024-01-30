@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bullseye
+FROM python:3.11-alpine3.17
 
 LABEL authors="ronylitv"
 
@@ -9,7 +9,9 @@ WORKDIR /app
 COPY ./requirements.txt /app/requirements.txt
 
 # Install any dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apk add --no-cache postgresql-dev rust cargo \
+    && pip install --upgrade pip \
+    && pip install --no-cache-dir --upgrade -r /src/app/requirements.txt
 
 # Copy the content of the local src directory to the working directory
 COPY . /app
