@@ -1,10 +1,16 @@
 version: "3"
 services:
   aiogram-app:
-    build: .
-    command: python main_webhook.py
+    build: DealMakerBot/.
     env_file:
-      - .env
+      - DealMakerBot/.env
+    depends_on:
+      - redis
+      - database-api
+    environment:
+      DB_API_URL: database-api
+      DB_API_TOKEN:
+
   redis:
     image: "redis:alpine"
     ports:
@@ -13,16 +19,36 @@ services:
     volumes:
       - redis_data:/data
 
-  postgres:
+  postgres-db:
     image: "postgres"
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: your_db_name
-      POSTGRES_USER: your_db_user
+      POSTGRES_DB: dealmakerbot
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD:
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  database-api:
+    build: BotMonobankIntegration/.
+    env_file:
+      - BotMonobankIntegration/.env
+    depends_on:
+      - postgres-db
+      - nginx
+    ports:
+      - "80:80"
+    command: >
+      sh -c "
+        alembic upgrade heads &&
+        uvicorn main:app --proxy-headers --host 0.0.0.0 --port 80
+      "
 
   nginx:
     image: nginx:alpine
@@ -35,4 +61,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-
