@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 
@@ -45,14 +46,28 @@ WEBHOOK_SECRET_CHATBOT = os.getenv("WEBHOOK_SECRET_CHATBOT")
 
 
 async def on_startup_bot(bot: Bot):
-    await bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH_BOT}", secret_token=WEBHOOK_SECRET_BOT)
+    await bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH_BOT}",
+                          secret_token=WEBHOOK_SECRET_BOT, )
+    types_command = [
+        types.BotCommand(command="menu", description="Створення основного меню"),
+        types.BotCommand(command="ticket", description="Стоврення тікету на користувача")
+    ]
+
+    await bot.set_my_commands(types_command)
 
 
 async def on_startup_chatbot(bot: Bot):
     await bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH_CHATBOT}", secret_token=WEBHOOK_SECRET_CHATBOT)
 
+    chat_types_command = [
+        types.BotCommand(command="get_chat", description="Почати інший чат"),
+        types.BotCommand(command="pay", description="Оплата замовлення")
+    ]
 
-async def main():
+    await bot.set_my_commands(chat_types_command)
+
+
+def main():
     redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
     if REDIS_PASSWORD:
         redis_url = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
@@ -64,19 +79,6 @@ async def main():
 
     bot_deal = Bot(BOT_TOKEN, parse_mode=ParseMode.HTML)
     bot_chat = Bot(CHAT_BOT_TOKEN, parse_mode=ParseMode.HTML)
-
-    types_command = [
-        types.BotCommand(command="menu", description="Створення основного меню"),
-        types.BotCommand(command="ticket", description="Стоврення тікету на користувача")
-    ]
-
-    chat_types_command = [
-        types.BotCommand(command="get_chat", description="Почати інший чат"),
-        types.BotCommand(command="pay", description="Оплата замовлення")
-    ]
-
-    await bot_deal.set_my_commands(types_command)
-    await bot_chat.set_my_commands(chat_types_command)
 
     dp_deal.include_routers(
         main_handlers.main_router,
@@ -94,7 +96,7 @@ async def main():
     app = web.Application()
 
     SimpleRequestHandler(
-        dispatcher=dp_deal, bot=bot_deal, secret_token=WEBHOOK_SECRET_BOT
+        dispatcher=dp_deal, bot=bot_deal, secret_token=WEBHOOK_SECRET_BOT,
     ).register(app, path=WEBHOOK_PATH_BOT)
 
     SimpleRequestHandler(
