@@ -11,6 +11,7 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiogram_dialog import setup_dialogs
 
 from handlers.users_joining_handler import joining_users_router
 from handlers.auth_handler import auth_router
@@ -106,9 +107,13 @@ def main():
     setup_application(app, dp_deal, bot=bot_deal)
     setup_application(app, dp_chatbot, bot=bot_chat)
 
+    setup_dialogs(dp_deal)
+    setup_dialogs(dp_chatbot)
+
     web.run_app(app, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    print("Hello")
     main()
