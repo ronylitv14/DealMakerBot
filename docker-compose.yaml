@@ -10,6 +10,7 @@ services:
     environment:
       DB_API_URL: database-api
       DB_API_TOKEN:
+    command: ["python", "main.py"]
 
   redis:
     image: "redis:alpine"
@@ -24,11 +25,11 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: dealmakerbot
+      POSTGRES_DB: dealbotdb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD:
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/bot_data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -39,15 +40,17 @@ services:
     build: BotMonobankIntegration/.
     env_file:
       - BotMonobankIntegration/.env
+    environment:
+      POSTGRES_HOST: postgres-db
     depends_on:
       - postgres-db
       - nginx
     ports:
-      - "80:80"
+      - "8088:8088"
     command: >
       sh -c "
         alembic upgrade heads &&
-        uvicorn main:app --proxy-headers --host 0.0.0.0 --port 80
+        uvicorn main:app --proxy-headers --host 0.0.0.0 --port 8088
       "
 
   nginx:

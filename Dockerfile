@@ -9,9 +9,8 @@ WORKDIR /app
 COPY ./requirements.txt /app/requirements.txt
 
 # Install any dependencies
-RUN apk add --no-cache postgresql-dev rust cargo \
-    && pip install --upgrade pip \
-    && pip install --no-cache-dir --upgrade -r /src/app/requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir --upgrade -r /app/requirements.txt
 
 # Copy the content of the local src directory to the working directory
 COPY . /app
