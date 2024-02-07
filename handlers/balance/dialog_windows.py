@@ -12,6 +12,7 @@ from handlers.balance.window_widgets import (
     TelegramBtns,
     TelegramInputs
 )
+from utils.bank_card_utils import format_card_number
 from utils.dialog_texts import (
     adding_money_text,
     balance_text,
@@ -83,7 +84,7 @@ async def get_cards_info(**kwargs):
     updated_cards = []
 
     for ind, card in enumerate(cards):
-        updated_cards.append((card, ind))
+        updated_cards.append((format_card_number(card), ind))
 
     manager.dialog_data["updated_cards"] = updated_cards
 
@@ -117,18 +118,18 @@ accept_card_window = Window(
 )
 
 
-async def close_balance_dialog(data: Any, manager: DialogManager):
-    state: FSMContext = manager.dialog_data.get("state_object")
-    cur_state: State = manager.dialog_data.get("cur_state")
-    if state:
-        await state.set_state(cur_state)
-
-
-async def on_process_result(start_data, result: Dict[str, str],
-                            dialog_manager: DialogManager):
-
-    if result.get("has_ended"):
-        await dialog_manager.done()
+# async def close_balance_dialog(data: Any, manager: DialogManager):
+#     state: FSMContext = manager.dialog_data.get("state_object")
+#     cur_state: State = manager.dialog_data.get("cur_state")
+#     if state:
+#         await state.set_state(cur_state)
+#
+#
+# async def on_process_result(start_data, result: Dict[str, str],
+#                             dialog_manager: DialogManager):
+#
+#     if result.get("has_ended"):
+#         await dialog_manager.done()
 
 
 def create_balance_dialogs():
@@ -137,8 +138,8 @@ def create_balance_dialogs():
             main_window,
             adding_money_window,
             accepting_request_window,
-            on_close=close_balance_dialog,
-            on_process_result=on_process_result
+            # on_close=close_balance_dialog,
+            # on_process_result=on_process_result
         ),
         Dialog(
             checking_password_window,

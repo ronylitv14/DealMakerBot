@@ -16,13 +16,6 @@ state_to_update_obj_map = {
 }
 
 
-async def on_close_window(message: Any, manager: DialogManager):
-    state = manager.dialog_data.get("state")
-    cur_state = manager.dialog_data.get("cur_state")
-    if state and cur_state:
-        await state.set_state(cur_state)
-
-
 class WindowBuilder(ABC):
     def __init__(self, state_group):
         self.state_group = state_group
@@ -37,14 +30,14 @@ class EditMailWindowBuilder(WindowBuilder):
         auth_window = create_auth_window(self.state_group)
         edit_obj_window = create_edit_obj_window(
             self.state_group,
-            Format("<b>📧Ваша попередня пошта:</b> {dialog_data[user].email}\n"
+            Format("<b>📧Ваша попередня пошта:</b> {dialog_data[user][email]}\n"
                    "<i>Будь ласка, введіть нову електронну адресу.</i>"),
             ProfileBranch.EMAIL
         )
         accept_window = create_accept_window(
             self.state_group,
             Format("<b>✅ Підтвердження електронної адреси</b>\n"
-                   "<i>Ви підтверджуєте вашу нову пошту:</i> {dialog_data[updated_obj]}?")
+                   "<i>Ви підтверджуєте вашу нову пошту:</i> {dialog_data[new_value]}?")
         )
 
         return auth_window, edit_obj_window, accept_window
@@ -55,14 +48,14 @@ class EditPhoneWindowBuilder(WindowBuilder):
         auth_window = create_auth_window(self.state_group)
         edit_obj_window = create_edit_obj_window(
             self.state_group,
-            Format("<b>📧Ваш попередній номер телефону:</b> {dialog_data[user].phone}\n"
+            Format("<b>📧Ваш попередній номер телефону:</b> {dialog_data[user][phone]}\n"
                    "<i>Будь ласка, введіть новий номер.</i>"),
             ProfileBranch.PHONE
         )
         accept_window = create_accept_window(
             self.state_group,
             Format("<b>✅ Підтвердження номеру телефона</b>\n"
-                   "<i>Ви підтверджуєте ваш новий номер:</i> {dialog_data[updated_obj]}?")
+                   "<i>Ви підтверджуєте ваш новий номер:</i> {dialog_data[new_value]}?")
         )
 
         return auth_window, edit_obj_window, accept_window
@@ -73,14 +66,14 @@ class EditNickNameWindowBuilder(WindowBuilder):
         auth_window = create_auth_window(self.state_group)
         edit_obj_window = create_edit_obj_window(
             self.state_group,
-            Format("<b>📧Ваш попередній nickname:</b> {dialog_data[user].username}\n"
+            Format("<b>📧Ваш попередній nickname:</b> {dialog_data[user][username]}\n"
                    "<i>Будь ласка, введіть новий.</i>"),
             ProfileBranch.NICKNAME
         )
         accept_window = create_accept_window(
             self.state_group,
             Format("<b>✅ Підтвердження nickname</b>\n"
-                   "<i>Ви підтверджуєте ваш новий nickname:</i> {dialog_data[updated_obj]}?")
+                   "<i>Ви підтверджуєте ваш новий nickname:</i> {dialog_data[new_value]}?")
         )
 
         return auth_window, edit_obj_window, accept_window
@@ -113,7 +106,7 @@ class WindowBuilderFactory:
         builder = cls.get_builder(state_group, update_type)
         if isinstance(builder, DeleteAccWindowBuilder):
             return Dialog(*builder.create_windows())
-        return Dialog(*builder.create_windows(), on_close=on_close_window)
+        return Dialog(*builder.create_windows())
 
 
 WindowBuilderFactory.register_builder(ProfileBranch.EMAIL, EditMailWindowBuilder)

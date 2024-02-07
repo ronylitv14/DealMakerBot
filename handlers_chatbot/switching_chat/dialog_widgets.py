@@ -8,6 +8,8 @@ from aiogram_dialog.widgets.text import Format
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from database_api.components.chats import ChatsList
+
 
 async def on_chat_selected(callback: CallbackQuery, widget: Any,
                            manager: DialogManager, item_id: str):
@@ -16,7 +18,7 @@ async def on_chat_selected(callback: CallbackQuery, widget: Any,
 
     builder = InlineKeyboardBuilder()
 
-    chats = manager.start_data.get("chats")
+    chats = ChatsList(**manager.start_data.get("chats"))
     chat = chats[int(item_id)]
 
     builder.add(
@@ -27,8 +29,7 @@ async def on_chat_selected(callback: CallbackQuery, widget: Any,
     )
 
     await callback.message.answer(
-        text="<b>Увага!</b> Коли ви натиснете кнопку розпочати чат - потрібно буде натиснути знову кнопку <i>Start</i>"
-             " у бота! ",
+        text="<b>Увага!</b> Коли ви натиснете кнопку розпочати чат - зможете розпочати діалог з виконавцем",
         parse_mode="HTML",
         reply_markup=builder.as_markup()
     )

@@ -42,7 +42,6 @@ async def get_user_deals(message: Message, state: FSMContext, dialog_manager: Di
 
     await dialog_manager.start(state=DealsGroup.main_deals, mode=StartMode.RESET_STACK)
     dialog_manager.dialog_data["cur_state"] = cur_state
-    dialog_manager.dialog_data["state_obj"] = state
     dialog_manager.dialog_data["proposed_by"] = PropositionBy.client if cur_state == ClientDialog.client_state\
         else PropositionBy.executor
 

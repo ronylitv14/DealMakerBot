@@ -13,7 +13,7 @@ from keyboards.clients import create_keyboard_client
 from keyboards.executors import create_keyboard_executor
 
 from utils.dialog_texts import redirect_payment_url
-from utils.bank_card_utils import is_valid_card
+from utils.bank_card_utils import is_valid_card, format_card_number
 from handlers.utils.payment_system import BodyInfo, HeaderInfo, get_invoice_payment_link
 
 from database_api.components.users import Users, UserResponse
@@ -40,7 +40,7 @@ class ButtonCallbacks:
     async def process_money_adding(message: Message, input_widget: MessageInput, manager: DialogManager):
         try:
             input_money = int(message.text)
-            manager.dialog_data["money"] = input_money
+            manager.dialog_data["input_money_adding"] = input_money
 
             await manager.switch_to(BalanceGroup.accept_request)
         except ValueError:
@@ -65,7 +65,7 @@ class ButtonCallbacks:
                     x_token=X_TOKEN
                 ),
                 body_info=BodyInfo(
-                    amount=int(manager.dialog_data.get("money")) * 100,
+                    amount=int(manager.dialog_data.get("input_money_adding")) * 100,
                     webhook_url=f"{WEBHOOK_URL}/webhook/monobank/{callback.from_user.id}",
                     # redirect_url=TG_GROUP_NAME
                 )
@@ -91,7 +91,7 @@ class ButtonCallbacks:
             receiver_id=callback.from_user.id,
             transaction_type=TransactionType.debit,
             transaction_status=TransactionStatus.pending,
-            amount=manager.dialog_data.get("money"),
+            amount=manager.dialog_data.get("input_money_adding"),
         ).do_request()
 
         if response.is_error:
@@ -105,80 +105,12 @@ class ButtonCallbacks:
         )
 
     @staticmethod
-    async def accept_withdraw(callback: CallbackQuery, button: Button, manager: DialogManager):
-        cur_state = manager.dialog_data.get("cur_state")
-        input_sum = decimal.Decimal(manager.dialog_data.get("input_sum"))
-        commission = decimal.Decimal(manager.dialog_data.get("commission_sum"))
-        card_number = manager.dialog_data.get("withdrawal_card")
-
-        commission = round(commission, 2)
-        input_sum = round(input_sum, 2)
-
-        is_executor = True if cur_state == ExecutorDialog.executor_state else False
-
-        balance_withdrawal = await Balance().perform_fund_transfer(
-            user_id=callback.from_user.id,
-            amount=round(input_sum + commission, 2),
-            action=BalanceAction.withdrawal
-        ).do_request()
-
-        if balance_withdrawal.is_error:
-            await callback.answer(text='Виникли проблеми з перенесенням коштів! Спробуйте пізніше!')
-            await manager.done(result={"has_ended": True})
-            return
-
-        withdrawal = await Withdrawals().save_withdrawal_data(
-            user_id=callback.from_user.id,
-            status=WithdrawalStatus.pending,
-            amount=input_sum,
-            commission=commission,
-            payment_method=card_number
-        ).do_request()
-
-        if withdrawal.is_error:
-            await callback.answer(text='Виникли проблеми з створення запиту на кошти! Спробуйте пізніше!')
-            await manager.done(result={"has_ended": True})
-            await Balance().perform_fund_transfer(
-                user_id=callback.from_user.id,
-                amount=round(input_sum + commission, 2),
-                action=BalanceAction.replenishment
-            ).do_request()
-            return
-
-        await callback.message.answer(
-            text="Скоро кошти з'являться на вашому рахунку!",
-            reply_markup=create_keyboard_executor() if is_executor else create_keyboard_client()
-        )
-        await manager.done(result={"has_ended": True})
-
-    @staticmethod
-    async def cancel_balance_dialog(callback: CallbackQuery, button: Button, manager: DialogManager):
-        cur_state = manager.dialog_data.get("cur_state")
-        is_executor = True if cur_state == ExecutorDialog.executor_state else False
-
-        await manager.done(result={"has_ended": True})
-        await callback.message.answer(
-            text="Завершуємо роботу з балансом",
-            reply_markup=create_keyboard_executor() if is_executor else create_keyboard_client()
-        )
-
-    @staticmethod
-    async def cancel_subdialog(callback: CallbackQuery, button: Button, manager: DialogManager):
-        cur_state = manager.dialog_data.get("cur_state")
-        is_executor = True if cur_state == ExecutorDialog.executor_state else False
-        await manager.done(result={"has_ended": True})
-        await callback.message.answer(
-            text="Відмінено",
-            reply_markup=create_keyboard_executor() if is_executor else create_keyboard_client()
-        )
-
-    @staticmethod
     async def check_password(message: Message, input_widget: MessageInput, manager: DialogManager):
         password = message.text
 
         user: UserResponse = await Users().get_user_from_db(telegram_id=message.from_user.id).do_request()
 
-        manager.dialog_data["dialog_user"]: UserResponse = user
+        manager.dialog_data["dialog_user"] = user.model_dump(mode="json")
         is_authorized = user.check_password(
             password=password
         )
@@ -203,6 +135,39 @@ class ButtonCallbacks:
             )
 
     @staticmethod
+    async def cancel_balance_dialog(callback: CallbackQuery, button: Button, manager: DialogManager):
+        cur_state = manager.dialog_data.get("cur_state")
+        is_executor = True if cur_state == ExecutorDialog.executor_state else False
+
+        await manager.done(result={"has_ended": True})
+        await callback.message.answer(
+            text="Завершуємо роботу з балансом",
+            reply_markup=create_keyboard_executor() if is_executor else create_keyboard_client()
+        )
+
+    @staticmethod
+    async def cancel_subdialog(callback: CallbackQuery, button: Button, manager: DialogManager):
+        cur_state = manager.dialog_data.get("cur_state")
+        is_executor = True if cur_state == ExecutorDialog.executor_state else False
+        await manager.done(result={"has_ended": True})
+        await callback.message.answer(
+            text="Відмінено",
+            reply_markup=create_keyboard_executor() if is_executor else create_keyboard_client()
+        )
+
+
+class WithdrawCallbacks:
+    @staticmethod
+    async def withdraw_all_money(callback: CallbackQuery, button: Button, manager: DialogManager):
+        balance = manager.dialog_data.get("balance")
+        amount = decimal.Decimal(balance)
+        commission_sum = amount * COMMISSION
+
+        manager.dialog_data["input_sum"] = float(round(amount - commission_sum, 2))
+        manager.dialog_data["commission_sum"] = float(round(commission_sum, 2))
+        await manager.next()
+
+    @staticmethod
     async def process_sum_input(message: Message, input_widget: MessageInput, manager: DialogManager):
         try:
             input_sum = message.text
@@ -224,8 +189,8 @@ class ButtonCallbacks:
                 )
             else:
                 commission_sum = input_sum * COMMISSION
-                manager.dialog_data["input_sum"] = round(input_sum - commission_sum, 2)
-                manager.dialog_data["commission_sum"] = round(commission_sum, 2)
+                manager.dialog_data["input_sum"] = float(round(input_sum - commission_sum, 2))
+                manager.dialog_data["commission_sum"] = float(round(commission_sum, 2))
                 await manager.switch_to(WithdrawingMoneySub.handle_cards)
         except ValueError:
             await message.answer(
@@ -251,7 +216,7 @@ class ButtonCallbacks:
                     text="Сталася помилка при зберіганні картки!"
                 )
                 return
-            manager.dialog_data["withdrawal_card"] = card_number
+            manager.dialog_data["withdrawal_card"] = format_card_number(card_number)
             await manager.switch_to(WithdrawingMoneySub.accept_withdraw)
 
         else:
@@ -262,14 +227,50 @@ class ButtonCallbacks:
                 parse_mode="HTML"
             )
 
-
-class WithdrawCallbacks:
     @staticmethod
-    async def withdraw_all_money(callback: CallbackQuery, button: Button, manager: DialogManager):
-        balance = manager.dialog_data.get("balance")
-        amount = decimal.Decimal(balance)
-        commission_sum = amount * COMMISSION
+    async def accept_withdraw(callback: CallbackQuery, button: Button, manager: DialogManager):
+        cur_state = manager.dialog_data.get("cur_state")
+        input_sum = decimal.Decimal(manager.dialog_data.get("input_sum"))
+        commission = decimal.Decimal(manager.dialog_data.get("commission_sum"))
+        card_number = manager.dialog_data.get("withdrawal_card")
 
-        manager.dialog_data["input_sum"] = round(amount - commission_sum, 2)
-        manager.dialog_data["commission_sum"] = round(commission_sum, 2)
-        await manager.next()
+        commission = round(commission, 2)
+        input_sum = round(input_sum, 2)
+
+        is_executor = True if cur_state == ExecutorDialog.executor_state else False
+
+        balance_withdrawal = await Balance().perform_fund_transfer(
+            user_id=callback.from_user.id,
+            amount=round(input_sum + commission, 2),
+            action=BalanceAction.withdrawal
+        ).do_request()
+
+        if balance_withdrawal.is_error:
+            await callback.answer(text='Виникли проблеми з перенесенням коштів! Спробуйте пізніше!')
+            await manager.done()
+            return
+
+        withdrawal = await Withdrawals().save_withdrawal_data(
+            user_id=callback.from_user.id,
+            status=WithdrawalStatus.pending,
+            amount=input_sum,
+            commission=commission,
+            payment_method=card_number
+        ).do_request()
+
+        if withdrawal.is_error:
+            await callback.answer(text='Виникли проблеми з створення запиту на кошти! Спробуйте пізніше!')
+            await manager.done()
+            await Balance().perform_fund_transfer(
+                user_id=callback.from_user.id,
+                amount=round(input_sum + commission, 2),
+                action=BalanceAction.replenishment
+            ).do_request()
+            return
+
+        await callback.message.answer(
+            text="Скоро кошти з'являться на вашому рахунку!",
+            reply_markup=create_keyboard_executor() if is_executor else create_keyboard_client()
+        )
+        await manager.done()
+

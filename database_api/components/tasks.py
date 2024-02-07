@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, List
+from typing import Optional, List, Union
 from pydantic import BaseModel, ConfigDict
 from urllib.parse import urlencode
 from database_api.base import BaseAPI, HttpMethod, APIListObject
@@ -75,7 +75,7 @@ class Tasks(BaseAPI):
                        proposed_by: PropositionBy = PropositionBy.public,
                        files: Optional[List[str]] = None, files_type: Optional[List[FileType]] = None,
                        description: Optional[str] = None,
-                       deadline: Optional[datetime.date] = datetime.date.today()):
+                       deadline: Union[datetime.date, str, None] = datetime.date.today()):
         url = f"{self.component_path}/"
         json = {
             "client_id": client_id,
@@ -83,7 +83,7 @@ class Tasks(BaseAPI):
             "price": price,
             "subjects": subjects,
             "work_type": work_type,
-            "deadline": str(deadline),
+            "deadline": deadline if isinstance(deadline, str) else str(deadline),
             "files": files,
             "files_type": files_type,
             "description": description,

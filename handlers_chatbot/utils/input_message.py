@@ -1,16 +1,24 @@
 import abc
+from pprint import pprint
 
 from aiogram import Bot
 from aiogram.types import Message
 from aiogram.enums import ContentType
 
 import json
+from aiogram.types.reply_parameters import ReplyParameters
 
 
 class ContentHandler(abc.ABC):
     def __init__(self, message: Message, bot: Bot):
         self.message = message
         self.bot = bot
+        self.reply_params = None
+        if message.reply_to_message:
+            self.reply_params = ReplyParameters(
+                message_id=message.reply_to_message.message_id,
+                chat_id=message.chat.id
+            )
 
     @abc.abstractmethod
     async def handle_message(self, receiver_id):
@@ -22,7 +30,8 @@ class TextHandler(ContentHandler):
         text = self.message.text
         await self.bot.send_message(
             chat_id=receiver_id,
-            text=text
+            text=text,
+            reply_parameters=self.reply_params
         )
 
 
@@ -31,7 +40,8 @@ class PhotoHandler(ContentHandler):
         photo = self.message.photo
         await self.bot.send_photo(
             chat_id=receiver_id,
-            photo=photo[0].file_id
+            photo=photo[0].file_id,
+            reply_parameters=self.reply_params
         )
 
 
@@ -40,7 +50,8 @@ class DocumentHandler(ContentHandler):
         doc = self.message.document
         await self.bot.send_document(
             chat_id=receiver_id,
-            document=doc.file_id
+            document=doc.file_id,
+            reply_parameters=self.reply_params
         )
 
 
@@ -49,7 +60,8 @@ class AudioHandler(ContentHandler):
         audio = self.message.audio
         await self.bot.send_audio(
             chat_id=receiver_id,
-            audio=audio.file_id
+            audio=audio.file_id,
+            reply_parameters=self.reply_params
         )
 
 
@@ -58,7 +70,8 @@ class VoiceHandler(ContentHandler):
         voice = self.message.voice
         await self.bot.send_voice(
             chat_id=receiver_id,
-            voice=voice.file_id
+            voice=voice.file_id,
+            reply_parameters=self.reply_params
         )
 
 
@@ -67,7 +80,8 @@ class StickerHandler(ContentHandler):
         sticker = self.message.sticker
         await self.bot.send_sticker(
             chat_id=receiver_id,
-            sticker=sticker.file_id
+            sticker=sticker.file_id,
+            reply_parameters=self.reply_params
         )
 
 
@@ -76,7 +90,8 @@ class VideoHandler(ContentHandler):
         video = self.message.video
         await self.bot.send_video(
             chat_id=receiver_id,
-            video=video.file_id
+            video=video.file_id,
+            reply_parameters=self.reply_params
         )
 
 
@@ -115,6 +130,12 @@ class JsonMessage(abc.ABC):
     def __init__(self, message_data: dict, bot: Bot):
         self.message_data = message_data
         self.bot = bot
+        self.reply_params = None
+        if message_data.get('reply_to_message'):
+            self.reply_params = ReplyParameters(
+                message_id=message_data['reply_to_message']['message_id'],
+                chat_id=message_data['chat']['id']
+            )
 
     @abc.abstractmethod
     async def send_message(self, chat_id):
@@ -125,7 +146,8 @@ class TextJsonMessage(JsonMessage):
     async def send_message(self, chat_id):
         await self.bot.send_message(
             chat_id=chat_id,
-            text=self.message_data["text"]
+            text=self.message_data["text"],
+            reply_parameters=self.reply_params
         )
 
 
@@ -133,7 +155,8 @@ class PhotoJsonMessage(JsonMessage):
     async def send_message(self, chat_id):
         await self.bot.send_photo(
             chat_id=chat_id,
-            photo=self.message_data["photo"][0]["file_id"]
+            photo=self.message_data["photo"][0]["file_id"],
+            reply_parameters=self.reply_params
         )
 
 
@@ -143,7 +166,8 @@ class DocumentJsonMessage(JsonMessage):
 
         await self.bot.send_document(
             chat_id=chat_id,
-            document=self.message_data["document"]["file_id"]
+            document=self.message_data["document"]["file_id"],
+            reply_parameters=self.reply_params
         )
 
 
@@ -152,7 +176,8 @@ class AudioJsonMessage(JsonMessage):
         print("Bad audio!")
         await self.bot.send_audio(
             chat_id=chat_id,
-            audio=self.message_data["audio"]["file_id"]
+            audio=self.message_data["audio"]["file_id"],
+            reply_parameters=self.reply_params
         )
 
 
@@ -162,7 +187,8 @@ class VoiceJsonMessage(JsonMessage):
 
         await self.bot.send_voice(
             chat_id=chat_id,
-            voice=self.message_data["voice"]["file_id"]
+            voice=self.message_data["voice"]["file_id"],
+            reply_parameters=self.reply_params
         )
 
 
@@ -170,7 +196,8 @@ class StickerJsonMessage(JsonMessage):
     async def send_message(self, chat_id):
         await self.bot.send_sticker(
             chat_id=chat_id,
-            sticker=self.message_data["sticker"]["file_id"]
+            sticker=self.message_data["sticker"]["file_id"],
+            reply_parameters=self.reply_params
         )
 
 
@@ -180,7 +207,8 @@ class VideoJsonMessage(JsonMessage):
 
         await self.bot.send_video(
             chat_id=chat_id,
-            video=self.message_data["video"]["file_id"]
+            video=self.message_data["video"]["file_id"],
+            reply_parameters=self.reply_params
         )
 
 

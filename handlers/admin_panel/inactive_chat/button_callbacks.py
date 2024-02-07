@@ -63,14 +63,15 @@ class ButtonCallbacks:
             await message.answer("Такого номеру чату, на жаль, немає. Можливо виникла помилка в БД!")
             return
 
-        manager.dialog_data["chat"] = chat
-        manager.dialog_data["task"] = task.create_task_summary()
+        manager.dialog_data["chat"] = chat.model_dump(mode="json")
+        manager.dialog_data["chat_summary"] = str(chat)
+        manager.dialog_data["task_summary"] = task.create_task_summary()
 
         await manager.next()
 
     @staticmethod
     async def accept_chat_deactivation(callback: CallbackQuery, button: Button, manager: DialogManager):
-        chat: ChatModel = manager.dialog_data.get("chat")
+        chat = ChatModel(**manager.dialog_data.get("chat"))
 
         res = await create_inactive_chat(
             db_chat_id=chat.id,

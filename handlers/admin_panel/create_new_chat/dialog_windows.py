@@ -3,6 +3,7 @@ from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Cancel, Back, Row
 from aiogram_dialog.dialog import DialogManager, Dialog
 
+from database_api.components.users import UserResponseList
 from handlers.admin_panel.create_new_chat.dialog_widgets import TelegramInputs, TelegramBtns
 from handlers.admin_panel.create_new_chat.dialog_states import CreatingCustomChat
 
@@ -14,8 +15,10 @@ def get_data_about_user(user_type: str, dialog_manager: DialogManager):
 
     res = []
 
-    for ind, user in enumerate(users):
-        res.append((user, ind))
+    if users and isinstance(users, dict):
+        users = UserResponseList(**users)
+        for ind, user in enumerate(users):
+            res.append((user, ind))
 
     return res
 
@@ -107,8 +110,8 @@ input_desc_window = Window(
 
 accept_deal = Window(
     Format("Це вікно підтвердження заданої вами інформації:\n\n"
-           "Дані клієнта: {dialog_data[client]}\n"
-           "Дані виконавця: {dialog_data[executor]}\n"
+           "Дані клієнта: {dialog_data[client_summary]}\n"
+           "Дані виконавця: {dialog_data[executor_summary]}\n"
            "Предмет виконання: {dialog_data[subject]}\n"
            "Опис завдання, що буде надісланим обом:\n\n{dialog_data[description]}\n\n"
            "Якщо все описано вірно можна натискати кнопку 'Створити'"),

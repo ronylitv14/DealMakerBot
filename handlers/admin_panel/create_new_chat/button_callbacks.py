@@ -23,7 +23,11 @@ class InputCallback:
             name=query,
             is_executor=True
         ).do_request()
-        manager.dialog_data["executors"] = executors
+
+        if not isinstance(executors, UserResponseList):
+            return await message.answer("Спробуйте ще раз! Таких користувачів не знайдено!")
+
+        manager.dialog_data["executors"] = executors.model_dump(mode="json")
         await manager.next()
 
     @staticmethod
@@ -34,7 +38,12 @@ class InputCallback:
             name=query,
             is_executor=False
         ).do_request()
-        manager.dialog_data["clients"] = clients
+        print(clients)
+
+        if not isinstance(clients, UserResponseList):
+            return await message.answer("Спробуйте ще раз! Таких користувачів не знайдено!")
+
+        manager.dialog_data["clients"] = clients.model_dump(mode="json")
         await manager.next()
 
     @staticmethod
@@ -52,9 +61,12 @@ class SelectCallbacks:
             return await callback.answer("Немає знайдених користувачів")
 
         executors = manager.dialog_data.get("executors")
-        executor = executors[int(item_id)]
+        executor = executors["list_values"][int(item_id)]
+
+        user_summary = f"Ім'я користувача: {executor['username']}, статус: {executor['user_status']}"
 
         manager.dialog_data["executor"] = executor
+        manager.dialog_data["executor_summary"] = user_summary
         await manager.next()
 
     @staticmethod
@@ -64,9 +76,12 @@ class SelectCallbacks:
             return await callback.answer("Немає знайдених користувачів")
 
         clients = manager.dialog_data.get("clients")
-        client = clients[int(item_id)]
+        client = clients["list_values"][int(item_id)]
+
+        user_summary = f"Ім'я користувача: {client['username']}, статус: {client['user_status']}"
 
         manager.dialog_data["client"] = client
+        manager.dialog_data["client_summary"] = user_summary
         await manager.next()
 
     @staticmethod
@@ -84,8 +99,8 @@ class SelectCallbacks:
 class ButtonCallbacks:
     @staticmethod
     async def create_deal_for_all(callback: CallbackQuery, button: Button, manager: DialogManager):
-        executor: UserResponse = manager.dialog_data.get("executor")
-        client: UserResponse = manager.dialog_data.get("client")
+        executor = UserResponse(**manager.dialog_data.get("executor"))
+        client = UserResponse(**manager.dialog_data.get("client"))
 
         desc = manager.dialog_data.get("description")
         subject = manager.dialog_data.get("subject")

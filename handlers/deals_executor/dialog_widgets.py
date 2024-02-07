@@ -8,7 +8,7 @@ from aiogram_dialog.dialog import DialogManager
 from aiogram.enums import ContentType
 from aiogram.types import CallbackQuery
 
-from database_api.components.users import UserResponse
+from database_api.components.users import UserResponse, UserResponseList
 from database_api.components.tasks import Tasks, PropositionBy, TaskStatus
 
 from handlers.deals_executor.button_callbacks import InputCallbacks
@@ -19,7 +19,7 @@ async def on_client_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.answer(text="Не знайдено таких користувачів! Поверніться назад і спробуйте ще раз!")
 
-    users = manager.dialog_data.get("users")
+    users = UserResponseList(**manager.dialog_data.get("users"))
     user: UserResponse = users[int(item_id)]
 
     await Tasks().save_task_data(

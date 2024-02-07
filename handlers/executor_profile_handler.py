@@ -1,3 +1,5 @@
+from uuid import uuid1
+
 from aiogram import F
 from aiogram import types
 from aiogram.enums import ChatType
@@ -28,7 +30,6 @@ async def get_executor_menu(message: types.Message, state: FSMContext, dialog_ma
 
     executor: ExecutorModel = await Executors().get_executor_data(message.from_user.id).do_request()
 
-    await state.set_data({"executor": executor})
     if not isinstance(executor, ExecutorModel):
         await message.answer(
             text="Перевірка на присутність у базі даних виконавців",
@@ -37,9 +38,9 @@ async def get_executor_menu(message: types.Message, state: FSMContext, dialog_ma
 
         await dialog_manager.start(state=CreatingProfile.adding_description, mode=StartMode.RESET_STACK)
         dialog_manager.dialog_data["cur_state"] = await state.get_state()
-        dialog_manager.dialog_data["state_obj"] = state
         dialog_manager.dialog_data["docs"] = []
         dialog_manager.dialog_data["type"] = []
+        dialog_manager.dialog_data["unique_id"] = str(uuid1)
         return
 
     if executor.profile_state == ProfileStatus.created:
@@ -48,9 +49,9 @@ async def get_executor_menu(message: types.Message, state: FSMContext, dialog_ma
         await message.answer(text="Ваша заявка відхилена!")
         await dialog_manager.start(state=CreatingProfile.adding_description, mode=StartMode.RESET_STACK)
         dialog_manager.dialog_data["cur_state"] = await state.get_state()
-        dialog_manager.dialog_data["state_obj"] = state
         dialog_manager.dialog_data["docs"] = []
         dialog_manager.dialog_data["type"] = []
+        dialog_manager.dialog_data["unique_id"] = str(uuid1)
         return
 
     await state.set_state(ExecutorDialog.executor_state)
@@ -68,8 +69,8 @@ async def get_executor_orders(message: types.Message, state: FSMContext, dialog_
     await message.answer(
         text="Checking executor orders"
     )
-    data = await state.get_data()
-    executor = data.get("executor")
+
+    executor = await Executors().get_executor_data(message.from_user.id).do_request()
 
     await dialog_manager.start(state=MyOrders.main, mode=StartMode.RESET_STACK)
-    dialog_manager.dialog_data["executor"] = executor
+    dialog_manager.dialog_data["executor"] = executor.model_dump(mode="json")

@@ -13,7 +13,7 @@ from handlers.creating_orders.dialog_windows import get_order_type, get_subjects
 from handlers.deals.window_widgets import TelegramInputs, TelegramBtns
 
 
-from database_api.components.tasks import PropositionBy, TasksList
+from database_api.components.tasks import PropositionBy, TasksList, TaskModel
 from database_api.components.executors import Executors
 from database_api.components.chats import Chats
 from database_api.components.users import UserResponseList
@@ -36,12 +36,15 @@ async def get_nickname_data(**kwargs):
     get_data_func = users_for_deals[cur_state]
     user_id: int = manager.start_data.get("user_id")
 
-    users: UserResponseList = await get_data_func(user_id).do_request()
-    manager.dialog_data["users"] = users
     result = []
 
-    for ind, user in enumerate(users):
-        result.append((user.username, ind))
+    users: UserResponseList = await get_data_func(user_id).do_request()
+
+    if isinstance(users, UserResponseList):
+        manager.dialog_data["users"] = users.model_dump(mode="json")
+
+        for ind, user in enumerate(users):
+            result.append((user.username, ind))
 
     return {
         "result": result if result else [("Не знайдено користувачів", -1)]
@@ -50,12 +53,13 @@ async def get_nickname_data(**kwargs):
 
 async def get_deals_data(**kwargs):
     manager: DialogManager = kwargs.get("dialog_manager")
-    cur_state = manager.dialog_data.get("cur_state")
 
     returned_deals = manager.dialog_data["returned_deals"]
 
     all_deals = []
-    if isinstance(returned_deals, TasksList):
+    if returned_deals and isinstance(returned_deals, dict):
+        returned_deals = TasksList(**returned_deals)
+
         for ind, deal in enumerate(returned_deals):
             all_deals.append((deal, ind))
 
@@ -142,12 +146,12 @@ files_window = Window(
 )
 
 
-async def on_dialog_close(data: Any, dialog_manager: DialogManager):
-    cur_state = dialog_manager.dialog_data.get("cur_state")
-    state: FSMContext = dialog_manager.dialog_data.get("state_obj")
-
-    if state and cur_state:
-        await state.set_state(cur_state)
+# async def on_dialog_close(data: Any, dialog_manager: DialogManager):
+#     cur_state = dialog_manager.dialog_data.get("cur_state")
+#     state: FSMContext = dialog_manager.dialog_data.get("state_obj")
+#
+#     if state and cur_state:
+#         await state.set_state(cur_state)
 
 
 def create_dialog_client():
@@ -161,5 +165,5 @@ def create_dialog_client():
     ), Dialog(
         main_window,
         watch_deals_window,
-        on_close=on_dialog_close
+        # on_close=on_dialog_close
     )

@@ -51,7 +51,7 @@ async def create_payment(message: types.Message, dialog_manager: DialogManager):
         state=PriceOffer.offer_price,
         mode=StartMode.RESET_STACK,
         data={
-            "chat_obj": chat_obj
+            "chat_obj": chat_obj.model_dump(mode="json")
         }
     )
 

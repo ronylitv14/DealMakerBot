@@ -26,6 +26,6 @@ async def start_get_chat_dialog(message: Message, dialog_manager: DialogManager,
         mode=StartMode.RESET_STACK,
         show_mode=ShowMode.SEND,
         data={
-            "chats": user_chats
+            "chats": user_chats.model_dump(mode="json")
         }
     )

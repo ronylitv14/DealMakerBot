@@ -6,7 +6,8 @@ from aiogram_dialog.widgets.kbd import Button, Select, Back, ScrollingGroup
 from aiogram_dialog.widgets.text import Format, Const
 from aiogram_dialog.dialog import DialogManager
 
-from database_api.components.tasks import TaskModel
+from database_api.components.tasks import TaskModel, TasksList
+from database_api.components.users import UserResponseList
 from handlers.deals.button_callbacks import ButtonCallbacks
 from handlers.utils.start_action_handler import create_files_reply
 from keyboards.inline_keyboards import create_accepting_deal
@@ -17,8 +18,8 @@ async def on_nickname_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="На даний момент немає доступних користувачів!")
 
-    users = manager.dialog_data.get("users")
-    manager.dialog_data["nickname"] = users[int(item_id)]
+    users = UserResponseList(**manager.dialog_data.get("users"))
+    manager.dialog_data["nickname"] = users[int(item_id)].model_dump(mode="json")
     manager.dialog_data["subject_title"] = []
     manager.dialog_data["type"] = []
     manager.dialog_data["docs"] = []
@@ -31,7 +32,7 @@ async def on_deal_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="Поки вам нових угод не приходило!")
 
-    deals = manager.dialog_data.get("returned_deals")
+    deals = TasksList(**manager.dialog_data.get("returned_deals"))
 
     selected_deal: TaskModel = deals[int(item_id)]
     subjects = ", ".join(selected_deal.subjects)

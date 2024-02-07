@@ -83,7 +83,10 @@ class ProcessOrder:
         # вже взяте замовлення, або про те, що воно вже твоє
 
         user_id = self.message.from_user.id
-
+        print(user_id)
+        if self.callback:
+            user_id = self.callback.from_user.id
+        print(user_id)
         executor = await Executors().get_executor_data(user_id=user_id).do_request()
         if not isinstance(executor, ExecutorModel):
             return await self.message.answer(
@@ -104,8 +107,6 @@ class ProcessOrder:
             )
             return
 
-        if self.callback:
-            user_id = self.callback.from_user.id
         executor_username: UserResponse = await Users().get_user_from_db(user_id).do_request()
 
         await self.manager.start(
@@ -114,7 +115,7 @@ class ProcessOrder:
             show_mode=ShowMode.SEND,
             data={
                 "client_chat_id": task.client_id,
-                "executor_tg_id": self.message.from_user.id,
+                "executor_tg_id": user_id,
                 "task_id": task.task_id,
                 "username": executor_username.telegram_username
             }

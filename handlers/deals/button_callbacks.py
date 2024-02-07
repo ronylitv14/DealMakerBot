@@ -32,7 +32,7 @@ class ButtonCallbacks:
     async def create_deal(callback: CallbackQuery, button: Button, manager: DialogManager):
 
         cur_state = manager.dialog_data.get("cur_state")
-        state_obj = manager.dialog_data.get("state_obj")
+        # state_obj = manager.dialog_data.get("state_obj")
         proposed_by = manager.dialog_data.get("proposed_by")
 
         if proposed_by == PropositionBy.client:
@@ -41,7 +41,6 @@ class ButtonCallbacks:
                 data={
                     "user_id": callback.from_user.id,
                     "cur_state": cur_state,
-                    "state_obj": state_obj,
                     "proposed_by": proposed_by
                 },
                 mode=StartMode.RESET_STACK
@@ -60,8 +59,9 @@ class ButtonCallbacks:
             proposed_by=proposed_by,
             user_id=callback.from_user.id
         ).do_request()
+        print(deals)
 
-        manager.dialog_data["returned_deals"] = deals
+        manager.dialog_data["returned_deals"] = deals.model_dump(mode="json") if isinstance(deals, TasksList) else None
 
         await manager.switch_to(state=DealsGroup.watch_deals)
 

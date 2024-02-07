@@ -31,11 +31,12 @@ def create_cancel_button(btn_text: str):
 
 async def get_applications_data(**kwargs):
     manager: DialogManager = kwargs.get("dialog_manager")
-    applications: ExecutorsList = manager.start_data.get("applications")
+    applications = manager.start_data.get("applications")
 
     displayed_result = []
 
-    if isinstance(applications, ExecutorsList):
+    if applications and isinstance(applications, dict):
+        applications = ExecutorsList(**applications)
         for ind, application in enumerate(applications):
             displayed_result.append((application, ind))
 
@@ -46,10 +47,11 @@ async def get_applications_data(**kwargs):
 
 async def get_users_data(**kwargs):
     manager: DialogManager = kwargs.get("dialog_manager")
-    users: UserResponseList = manager.start_data.get("users")
+    users = manager.start_data.get("users")
 
     displayed_result = []
-    if isinstance(users, UserResponseList):
+    if users and isinstance(users, dict):
+        users = UserResponseList(**users)
         for ind, user in enumerate(users):
             displayed_result.append((user, ind))
 
@@ -63,7 +65,8 @@ async def get_requests_data(**kwargs):
     requests = manager.start_data.get("requests")
 
     displayed_result = []
-    if isinstance(requests, WithdrawalRequestList):
+    if requests and isinstance(requests, dict):
+        requests = WithdrawalRequestList(**requests)
         for ind, request in enumerate(requests):
             displayed_result.append((request, ind))
 
@@ -77,7 +80,8 @@ async def get_tickets_data(**kwargs):
     tickets = manager.start_data.get("tickets")
 
     displayed_result = []
-    if isinstance(tickets, TicketsList):
+    if tickets and isinstance(tickets, dict):
+        tickets = TicketsList(**tickets)
         for ind, ticket in enumerate(tickets):
             displayed_result.append((ticket, ind))
 

@@ -3,6 +3,7 @@ from aiogram_dialog.window import Window
 from aiogram_dialog.widgets.text import Const
 from aiogram_dialog.widgets.kbd import Cancel
 
+from database_api.components.chats import ChatsList
 from handlers_chatbot.switching_chat.dialog_states import SwitchingChatStates
 from handlers_chatbot.switching_chat.dialog_widgets import select_chat
 
@@ -13,8 +14,10 @@ async def chats_getter(**kwargs):
 
     preprocessed_chat_btns = []
 
-    for ind, chat in enumerate(chats):
-        preprocessed_chat_btns.append((chat, ind))
+    if chats and isinstance(chats, dict):
+        chats = ChatsList(**chats)
+        for ind, chat in enumerate(chats):
+            preprocessed_chat_btns.append((chat, ind))
 
     return {
         "chats": preprocessed_chat_btns if preprocessed_chat_btns else [("Доступних чатів немає", -1)]
