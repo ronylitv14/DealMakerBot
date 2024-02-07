@@ -13,6 +13,8 @@ services:
     command: ["python", "main.py"]
     ports:
       - "8080:8080"
+    volumes:
+      - ./DealMakerBot/admin_sessions:/app/admin_sessions
 
   redis:
     image: "redis:alpine"
