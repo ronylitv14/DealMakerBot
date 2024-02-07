@@ -8,9 +8,11 @@ services:
       - redis
       - database-api
     environment:
-      DB_API_URL: database-api
+      DB_API_URL: https://dealmakerbot.xyz
       DB_API_TOKEN:
-    command: ["python", "main.py"]
+      REDIS_PASSWORD:
+      REDIS_HOST:
+    command: ["python", "main_webhook.py"]
     ports:
       - "8080:8080"
     volumes:
@@ -46,6 +48,7 @@ services:
       - BotMonobankIntegration/.env
     environment:
       POSTGRES_HOST: postgres-db
+      POSTGRES_PASSWORD:
     depends_on:
       - postgres-db
     ports:
