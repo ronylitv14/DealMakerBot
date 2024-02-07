@@ -11,6 +11,10 @@ services:
       DB_API_URL: database-api
       DB_API_TOKEN:
     command: ["python", "main.py"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./DealMakerBot/admin_sessions:/app/admin_sessions
 
   redis:
     image: "redis:alpine"
@@ -44,7 +48,6 @@ services:
       POSTGRES_HOST: postgres-db
     depends_on:
       - postgres-db
-      - nginx
     ports:
       - "8088:8088"
     command: >
@@ -52,14 +55,6 @@ services:
         alembic upgrade heads &&
         uvicorn main:app --proxy-headers --host 0.0.0.0 --port 8088
       "
-
-  nginx:
-    image: nginx:alpine
-    volumes:
-      - ./nginx:/etc/nginx/conf.d
-    ports:
-      - "80:80"
-      - "443:443"
 
 volumes:
   postgres_data:

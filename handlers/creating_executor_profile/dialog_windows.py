@@ -9,6 +9,8 @@ from handlers.creating_executor_profile.window_widgets import TelegramBtns, Tele
 
 from aiogram.fsm.context import FSMContext
 from aiogram_dialog.dialog import DialogManager
+
+from keyboards.main import create_keyboard_by_state
 from utils.dialog_categories import subject_titles
 
 
@@ -64,10 +66,7 @@ examples_window = Window(
 
 async def on_dialog_close(data: Any, dialog_manager: DialogManager):
     cur_state = dialog_manager.dialog_data.get("cur_state")
-    state: FSMContext = dialog_manager.dialog_data.get("state_obj")
-
-    if state and cur_state:
-        await state.set_state(cur_state)
+    await create_keyboard_by_state(cur_state, dialog_manager)
 
 
 def add_dialog_to_router(router) -> None:

@@ -22,7 +22,7 @@ query_window = Window(
 
 acceptation_window = Window(
     Format(
-        "Інформація щодо чату:\n\n{dialog_data[chat]}\n\n{dialog_data[task]}\n\n"
+        "Інформація щодо чату:\n\n{dialog_data[chat_summary]}\n\n{dialog_data[task_summary]}\n\n"
         "<b>Дані чату, який потрібно зробити вільним повністю відповідають цим даним?</b>"
     ),
     Row(

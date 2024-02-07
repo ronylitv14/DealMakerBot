@@ -7,10 +7,10 @@ from database_api.components.users import Users, UserResponse
 
 async def ban_user(callback: CallbackQuery, button: Button, manager: DialogManager):
 
-    user: UserResponse = manager.start_data.get("user")
+    user = manager.start_data.get("user")
 
     await Users().ban_user(
-        user_id=user.telegram_id,
+        user_id=user["telegram_id"],
         is_banned=True
     ).do_request()
 
@@ -22,7 +22,7 @@ async def unban_user(callback: CallbackQuery, button: Button, manager: DialogMan
     user: UserResponse = manager.start_data.get("user")
 
     await Users().ban_user(
-        user_id=user.telegram_id,
+        user_id=user["telegram_id"],
         is_banned=False
     ).do_request()
     await manager.done()

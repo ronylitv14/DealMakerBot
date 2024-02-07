@@ -11,6 +11,7 @@ from handlers.states_handler import ClientDialog
 
 from utils.dialog_categories import subject_titles
 from database_api.components.executors import Executors
+from utils.redis_utils import get_files_ids
 
 
 class ButtonCallbacks:
@@ -32,10 +33,14 @@ class ButtonCallbacks:
     @staticmethod
     async def save_executor_application(callback: CallbackQuery, button: Button, manager: DialogManager):
 
+        unique_id = manager.dialog_data.get("unique_id")
+
+        file_type, file_ids = await get_files_ids(unique_id)
+
         await Executors().save_executor_data(
             user_id=callback.from_user.id,
-            work_examples=manager.dialog_data.get("docs", []),
-            work_files_type=manager.dialog_data.get("type", []),
+            work_examples=file_ids,
+            work_files_type=file_type,
             description=manager.dialog_data.get("description"),
             tags=manager.dialog_data.get("subjects")
         ).do_request()

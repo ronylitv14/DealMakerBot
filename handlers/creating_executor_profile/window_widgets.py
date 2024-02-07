@@ -1,6 +1,6 @@
 import operator
 
-from aiogram_dialog.widgets.input import MessageInput
+from aiogram_dialog.widgets.input import MessageInput, CombinedInput
 from aiogram_dialog.widgets.kbd import Multiselect
 from aiogram_dialog.widgets.kbd import ScrollingGroup, Back
 from aiogram_dialog.widgets.text import Format, Const

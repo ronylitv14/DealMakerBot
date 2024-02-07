@@ -14,8 +14,9 @@ async def get_user_data(**kwargs):
     users = manager.dialog_data.get("users")
 
     res = []
-
-    if isinstance(users, UserResponseList):
+    print(users)
+    if users and isinstance(users, dict):
+        users = UserResponseList(**users)
         for ind, user in enumerate(users):
             res.append((user, ind))
 

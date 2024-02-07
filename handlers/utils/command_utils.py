@@ -12,9 +12,9 @@ from utils.dialog_texts import auth_text
 
 
 async def show_menu(message: types.Message, state: Optional[FSMContext] = None):
-    result: UserResponse = await Users().get_user_from_db(message.from_user.id).do_request()
+    result = await Users().get_user_from_db(message.from_user.id).do_request()
 
-    if isinstance(result, UserResponse):
+    if result is not None:
         await state.set_state(ClientDialog.client_state)
         await message.answer(
             text="<b>Обери наступну дію</b>",

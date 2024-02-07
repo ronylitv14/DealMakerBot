@@ -1,6 +1,6 @@
 import asyncio
 import os
-from datetime import date
+from datetime import date, datetime
 from dotenv import load_dotenv
 
 from aiogram.types.message import ContentType
@@ -25,6 +25,7 @@ from aiogram_dialog.widgets.kbd import Multiselect
 from database_api.components.tasks import Tasks, TaskModel, TaskStatus, FileType
 from database_api.components.group_messages import GroupMessages
 
+from utils.redis_utils import save_files_ids, get_files_ids
 
 load_dotenv()
 
@@ -113,40 +114,33 @@ class ButtonCallbacks:
     @staticmethod
     async def set_deadline(callback: CallbackQuery, widget,
                            manager: DialogManager, selected_date: date):
-        manager.dialog_data["date"] = selected_date
+        manager.dialog_data["date"] = selected_date.strftime("%Y-%m-%d")
         await manager.switch_to(OrderState.adding_description)
 
     @staticmethod
     async def preprocess_files_input(message: Message, input_widget: MessageInput, manager: DialogManager):
         manager.show_mode = ShowMode.EDIT
+
         file = None
         filename = None
 
+        unique_id = manager.dialog_data.get("unique_id")
+
         if message.content_type == ContentType.DOCUMENT:
             file, filename = message.document.file_id, message.document.file_name
-            manager.dialog_data["type"].append(FileType.document)
         elif message.content_type == ContentType.PHOTO:
             file, filename = message.photo[0].file_id, "фото"
-            manager.dialog_data["type"].append(FileType.photo)
 
-        manager.dialog_data["docs"].append(file)
-        manager.dialog_data["last_document"] = file
+        await save_files_ids(unique_id, file, message.content_type)
 
-        if message.media_group_id:
-            await message.answer(text=f"Додано документ з назвою {filename}")
-            await asyncio.sleep(1)
-            if manager.dialog_data["last_document"] == file:
-                manager.show_mode = ShowMode.SEND
-                await message.answer(
-                    text=f"Якщо це всі документи, що вам потрібно натискайте 'Зберегти' і ваше замовлення скоро з'явиться у групі")
-        else:
-            await message.answer(text=f"Додано документ з назвою {filename}")
-            manager.show_mode = ShowMode.SEND
-            await message.answer(
-                text=f"Якщо це всі документи, що вам потрібно натискайте 'Зберегти' і ваше замовлення скоро з'явиться у групі")
+        await message.answer(f"Додано документ з назвою {filename}!"
+                             f"Якщо це всі потрібні документи то натискайте кнопку 'Зберегти' в діалозі!")
 
     @staticmethod
     async def save_order(callback: CallbackQuery, button: Button, manager: DialogManager):
+        unique_id = manager.dialog_data.get("unique_id")
+
+        file_type, file_ids = await get_files_ids(unique_id)
 
         task: TaskModel = await Tasks().save_task_data(
             client_id=callback.from_user.id,
@@ -154,15 +148,14 @@ class ButtonCallbacks:
             price=manager.dialog_data.get('price'),
             deadline=manager.dialog_data.get('date'),
             subjects=manager.dialog_data.get('subject_title'),
-            files=manager.dialog_data.get("docs", []),
-            files_type=manager.dialog_data.get("type", []),
+            files=file_ids,
+            files_type=file_type,
             status=TaskStatus.active,
             work_type=manager.dialog_data.get('task_type')
         ).do_request()
 
         await manager.done()
         await callback.answer(text='Зберігаємо дані до групи! Це може зайняти якийсь час....')
-        await asyncio.sleep(0.5)
         adding_msg = AddingGroupMessage(
             callback=callback,
             manager=manager,

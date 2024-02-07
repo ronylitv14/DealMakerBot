@@ -17,3 +17,4 @@ def create_inline_keyboard_executor_auth():
     )
 
     return builder.as_markup()
+

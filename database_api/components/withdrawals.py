@@ -17,8 +17,8 @@ class WithdrawalRequestModel(BaseModel):
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
     request_id: int
     user_id: int
-    amount: condecimal(max_digits=10, decimal_places=2)
-    commission: condecimal(max_digits=10, decimal_places=2)
+    amount: float
+    commission: float
     request_date: datetime.datetime = datetime.datetime.now
     status: WithdrawalStatus
     payment_method: str

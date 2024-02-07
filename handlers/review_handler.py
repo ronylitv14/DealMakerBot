@@ -30,7 +30,6 @@ async def start_review_dialog(callback: CallbackQuery, state: FSMContext, dialog
             reviewed_id=reviewed_id,
             task_id=task_id,
             cur_state=cur_state,
-            state_obj=state
         )
     )
 

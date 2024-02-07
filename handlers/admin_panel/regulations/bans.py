@@ -13,8 +13,8 @@ btn_unban_user = Button(Const("Розбанити користувача"), id="
 btn_add_warning = Button(Const("Видати попередження"), id="btn_warning", on_click=add_warning)
 
 bans_window = Window(
-    Format("Ім'я користувача: {start_data[user].username}\n"
-           "Нік в телеграмі: {start_data[user].telegram_username}"),
+    Format("Ім'я користувача: {start_data[user][username]}\n"
+           "Нік в телеграмі: {start_data[user][telegram_username]}"),
     btn_ban_user,
     btn_unban_user,
     btn_add_warning,

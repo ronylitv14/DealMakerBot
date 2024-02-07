@@ -18,13 +18,13 @@ class ButtonCallbacks:
     @staticmethod
     async def get_active_orders(callback: CallbackQuery, button: Button, manager: DialogManager):
         user_type: UserType = manager.dialog_data.get("user_type")
-        executor: ExecutorModel = manager.dialog_data.get("executor")
+        executor = manager.dialog_data.get("executor")
 
         if user_type == UserType.executor:
 
             active_orders: TasksList = await Executors().get_executor_tasks(
                 status=[TaskStatus.active, TaskStatus.executing],
-                executor_id=executor.user_id
+                executor_id=executor["user_id"]
             ).do_request()
 
         else:
@@ -35,7 +35,7 @@ class ButtonCallbacks:
             ).do_request()
 
         if active_orders:
-            manager.dialog_data["orders"] = active_orders
+            manager.dialog_data["orders"] = active_orders.model_dump(mode="json")
             await manager.switch_to(MyOrders.watch_orders)
         else:
             await callback.message.answer(
@@ -45,12 +45,12 @@ class ButtonCallbacks:
     @staticmethod
     async def get_finished_orders(callback: CallbackQuery, button: Button, manager: DialogManager):
         user_type: UserType = manager.dialog_data.get("user_type")
-        executor: ExecutorModel = manager.dialog_data.get("executor")
+        executor = manager.dialog_data.get("executor")
 
         if executor:
             finished_orders = await Executors().get_executor_tasks(
                 status=[TaskStatus.done],
-                executor_id=executor.user_id
+                executor_id=executor["user_id"]
             ).do_request()
         else:
             finished_orders = await Tasks().get_all_user_tasks(
@@ -60,7 +60,7 @@ class ButtonCallbacks:
             ).do_request()
 
         if finished_orders:
-            manager.dialog_data["orders"] = finished_orders
+            manager.dialog_data["orders"] = finished_orders.model_dump(mode="json")
             await manager.switch_to(MyOrders.watch_orders)
         else:
             await callback.message.answer(
