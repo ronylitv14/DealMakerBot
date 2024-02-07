@@ -33,7 +33,7 @@ async def start_profile_dialog(message: Message, state: FSMContext):
 
     reviews: UserReviewResponse = await Reviews().get_user_reviews(message.from_user.id).do_request()
 
-    if not isinstance(reviews, UserReviewResponse):
+    if isinstance(reviews, UserReviewResponse):
         url = await get_summary_url(
             reviews=reviews
         )

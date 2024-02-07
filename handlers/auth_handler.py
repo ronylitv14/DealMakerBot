@@ -1,3 +1,5 @@
+from uuid import uuid1
+
 from aiogram import F
 from aiogram import types, Bot
 from aiogram.fsm.context import FSMContext
@@ -62,8 +64,9 @@ async def cancel_user_auth(message: types.Message, state: FSMContext):
 async def start_creating_executor_dialog(callback: types.CallbackQuery, state: FSMContext,
                                          dialog_manager: DialogManager, bot: Bot):
     await dialog_manager.start(state=CreatingProfile.adding_description, mode=StartMode.NORMAL)
-    dialog_manager.dialog_data["docs"] = []
-    dialog_manager.dialog_data["type"] = []
+    # dialog_manager.dialog_data["docs"] = []
+    # dialog_manager.dialog_data["type"] = []
+    dialog_manager.dialog_data["unique_id"] = str(uuid1())
 
     await callback.answer()
 
