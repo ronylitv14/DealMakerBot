@@ -21,25 +21,25 @@ async def process_user_message(message: Message, widget: MessageInput, manager: 
             )
 
     content_type = message.content_type
-    chat_obj: ChatModel = manager.start_data.get("chat_obj")
+    chat_obj = manager.start_data.get("chat_obj")
 
     manager.show_mode = ShowMode.EDIT
 
     handler = ChooseMessageHandler(content_type=content_type).choose()
-    if chat_obj.chat_type == ChatType.SUPERGROUP:
-        return await handler(message=message, bot=message.bot).handle_message(chat_obj.supergroup_id)
-    await handler(message=message, bot=message.bot).handle_message(-chat_obj.chat_id)
+    if chat_obj["chat_type"] == ChatType.SUPERGROUP:
+        return await handler(message=message, bot=message.bot).handle_message(chat_obj["supergroup_id"])
+    await handler(message=message, bot=message.bot).handle_message(-chat_obj["chat_id"])
 
 
 async def end_chat(callback: CallbackQuery, btn: Button, manager: DialogManager):
-    chat_obj: ChatModel = manager.start_data.get("chat_obj")
+    chat_obj = manager.start_data.get("chat_obj")
 
     await manager.done()
     await callback.message.answer(
-        text=f"Ви вийшли з чату: {chat_obj.group_name}"
+        text=f"Ви вийшли з чату: {chat_obj['group_name']}"
     )
     await deactivate_session(
-        session_key=f"session:{chat_obj.client_id}"
+        session_key=f"session:{chat_obj['client_id']}"
     )
 
 

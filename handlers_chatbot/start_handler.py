@@ -45,7 +45,7 @@ async def start_chat_action(dialog_manager: DialogManager, start_data: str = Non
 
     chat_obj: ChatModel = await Chats().get_chat_data(db_chat_id=int(db_chat_id)).do_request()
 
-    if dialog_manager.event.from_user.id != chat_obj.client_id:
+    if dialog_manager.event.from_user.id != chat_obj.client_id or chat_obj.active is False:
         return await dialog_manager.event.answer("Це не ваш чат як клієнта!")
 
     session_key = f"session:{chat_obj.client_id}:{chat_obj.id}"
@@ -55,7 +55,7 @@ async def start_chat_action(dialog_manager: DialogManager, start_data: str = Non
         mode=StartMode.RESET_STACK,
         show_mode=ShowMode.EDIT,
         data={
-            "chat_obj": chat_obj
+            "chat_obj": chat_obj.model_dump(mode="json")
         },
 
     )
