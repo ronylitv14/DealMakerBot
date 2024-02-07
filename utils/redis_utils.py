@@ -1,10 +1,12 @@
 import os
 import sys
+from typing import Tuple, List, Set, Dict, Generic
 
 import redis.asyncio as redis
 from redis.asyncio.client import Pipeline
 from datetime import datetime, timedelta
 import json
+from database_api.components.tasks import FileType
 
 from aiogram.types import Message
 from handlers_chatbot.utils.input_message import ChooseJsonMessage
@@ -80,6 +82,7 @@ async def store_message_in_redis(session_key, message: Message, pipe: Pipeline):
         "content": message.model_dump_json(exclude_none=True, indent=4),
         "from_user_id": message.from_user.id
     }
+    print(message_data)
 
     new_session_key = session_key + ":messages"
     print(f"Hello from storing data: {new_session_key}")
@@ -134,3 +137,26 @@ async def deactivate_all_unused_sessions(session_key: str, client_id: int, pipe:
     for key in keys:
         if key.decode() != session_key:
             await pipe.set(key.decode(), SessionStatus.deactivated).execute()
+
+
+@wrapper_for_redis_conn
+async def save_files_ids(unique_id: str, file_id: str, file_type: FileType, pipe: Pipeline):
+    await pipe.rpush(unique_id, file_id, file_type).execute()
+
+
+@wrapper_for_redis_conn
+async def get_files_ids(unique_id: str, pipe: Pipeline) -> Tuple[list, list]:
+    length_stack = await pipe.llen(unique_id).execute()
+    length_stack = length_stack[0]
+
+    file_type = []
+    file_id = []
+
+    for ind in range(length_stack):
+        data = await pipe.rpop(unique_id).execute()
+        if ind % 2 == 0:
+            file_type.append(data[0].decode())
+        else:
+            file_id.append(data[0].decode())
+
+    return file_type, file_id

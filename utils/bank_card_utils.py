@@ -21,3 +21,7 @@ def luhn_check(card_number):
 
 def is_valid_card(card_number):
     return is_valid_format(card_number) and luhn_check(card_number)
+
+
+def format_card_number(card: str):
+    return " ".join([card[i:i + 4] for i in range(0, len(card), 4)])

@@ -24,7 +24,6 @@ class CloseDialogMiddleware(BaseMiddleware):
 
         if dialog_manager.has_context() and event.text in ["/menu", "/ticket", "/panel"]:
             await dialog_manager.done()
-            await asyncio.sleep(0.2)
             match event.text:
                 case "/menu":
                     return await show_menu(message=event, state=data.get("state"))
