@@ -21,9 +21,8 @@ def enfing_dialog_wrapper(func):
     async def decorator(callback: CallbackQuery, button: Button, manager: DialogManager):
         await func(callback, button, manager)
         cur_state = manager.dialog_data.get("cur_state")
-        state: FSMContext = manager.dialog_data.get("state")
         if manager.dialog_data.get("delete"):
-            await show_menu(callback.message, state)
+            await show_menu(callback.message)
             await manager.done()
             return
 
@@ -61,7 +60,7 @@ class EmailUpdateStrategy(UpdateStrategy):
             if item.type == "email":
                 email = item.extract_from(message.text)
 
-        manager.dialog_data["update_function"] = Users().update_user(user_email=email, telegram_id=message.from_user.id)
+        manager.dialog_data["updated_values"] = dict(user_email=email, telegram_id=message.from_user.id)
         return email
 
 
@@ -75,8 +74,7 @@ class NicknameUpdateStrategy(UpdateStrategy):
             )
             return
 
-        manager.dialog_data["update_function"] = Users().update_user(nickname=nickname,
-                                                                     telegram_id=message.from_user.id)
+        manager.dialog_data["updated_values"] = dict(nickname=nickname, telegram_id=message.from_user.id)
         return nickname
 
 
@@ -92,7 +90,7 @@ class PhoneUpdateStrategy(UpdateStrategy):
             return
 
         phone = matched_pattern.group()
-        manager.dialog_data["update_function"] = Users().update_user(phone=phone, telegram_id=message.from_user.id)
+        manager.dialog_data["updated_values"] = dict(phone=phone, telegram_id=message.from_user.id)
         return phone
 
 
@@ -101,10 +99,9 @@ class UpdateContext:
         self._strategy = strategy
 
     async def execute_update(self, message: Message, widget: MessageInput, manager: DialogManager):
-        updated_value = await self._strategy.validate_and_update(message, widget, manager)
-        if updated_value:
-            manager.dialog_data["updated_obj"] = updated_value
-            await manager.next()
+        return_value = await self._strategy.validate_and_update(message, widget, manager)
+        manager.dialog_data["new_value"] = return_value
+        await manager.next()
 
 
 class ButtonCallbacks:
@@ -122,7 +119,7 @@ class ButtonCallbacks:
 
         is_correct = user.check_password(password=password)
         if is_correct:
-            manager.dialog_data["user"] = user
+            manager.dialog_data["user"] = user.model_dump(mode="json")
             await manager.next()
         else:
             await message.answer(
@@ -153,11 +150,10 @@ class ButtonCallbacks:
     @staticmethod
     @enfing_dialog_wrapper
     async def save_updated_obj(callback: CallbackQuery, button: Button, manager: DialogManager):
-        update_function = manager.dialog_data.get("update_function")
-        update_obj = manager.dialog_data.get("updated_obj")
+        updated_values = manager.dialog_data.get("updated_values")
         delete = manager.dialog_data.get("delete")
-        if update_function and update_obj:
-            await update_function.do_request()
+        if updated_values:
+            await Users().update_user(**updated_values).do_request()
         elif delete:
             resp = await Users().delete_user_from_db(
                 telegram_id=callback.from_user.id

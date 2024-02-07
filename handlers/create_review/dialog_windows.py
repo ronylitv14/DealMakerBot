@@ -1,16 +1,15 @@
 from typing import Any
 
-from aiogram.fsm.context import FSMContext
 from aiogram_dialog import Dialog, DialogManager
 from aiogram_dialog.widgets.kbd import Cancel, Row
 from aiogram_dialog.window import Window
 
 from aiogram_dialog.widgets.text import Const, Format
+from keyboards.main import create_keyboard_by_state
 
 from handlers.create_review.dialog_states import ReviewStates
 from handlers.create_review.dialog_widgets import TelegramWidgets, TelegramBtns, ScrollingSights, create_cancel_button, \
     create_back_button, create_skip_button
-from handlers.utils.command_utils import show_menu
 
 from utils.dialog_categories import positive_aspects, negative_aspects, rating_stars
 from utils.dialog_texts import select_user_rating_text, comment_text
@@ -87,8 +86,8 @@ commentary_window = Window(
 
 
 async def on_dialog_close(data: Any, dialog_manager: DialogManager, **kwargs):
-    state_obj: FSMContext = dialog_manager.start_data.get("state_obj")
-    await show_menu(dialog_manager.event.message, state=state_obj)
+    cur_state = dialog_manager.start_data.get("cur_state")
+    await create_keyboard_by_state(cur_state, dialog_manager)
 
 
 def create_review_dialog():

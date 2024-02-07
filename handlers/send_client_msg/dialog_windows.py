@@ -22,7 +22,9 @@ async def send_message_to_client(message: Message, widget: MessageInput, manager
     task_id = manager.start_data.get("task_id")
     executor_username = manager.start_data.get("username")
 
-    summary_text = None
+    print(executor_id)
+
+    summary_text = ""
 
     executor_reviews: UserReviewResponse = await Reviews().get_user_reviews(executor_id).do_request()
 

@@ -6,6 +6,7 @@ from aiogram_dialog.dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.api.entities import StartMode, ShowMode
+from pydantic import BaseModel
 
 from handlers.admin_panel.transactions_output.report import create_output_file
 from handlers.admin_panel.window_states import WatchExecutorApplication, UserData, ChangeUserBalance, BanUser, \
@@ -25,12 +26,12 @@ from database_api.components.balance import Balance, BalanceAction
 async def watch_applications(retrieve_data_func, states_group, manager: DialogManager, data_name: str,
                              mode: StartMode = StartMode.NEW_STACK):
     applications = await retrieve_data_func.do_request()
-
+    print(applications)
     await manager.start(
         state=states_group.watch_applications,
         mode=mode,
         data={
-            data_name: applications
+            data_name: applications.model_dump(mode="json") if isinstance(applications, BaseModel) else None
         }
     )
 
@@ -40,8 +41,8 @@ class InputCallbacks:
     async def process_balance_data(message: Message, msg_input: MessageInput, manager: DialogManager):
         new_balance = message.text
         try:
-            manager.dialog_data["new_balance"] = decimal.Decimal(new_balance)
-            manager.dialog_data["user"] = manager.start_data.get("user").telegram_username
+            manager.dialog_data["new_balance"] = round(float(new_balance), 2)
+            manager.dialog_data["user"] = manager.start_data.get("user")["telegram_username"]
             await manager.next()
         except ValueError:
             await message.answer(
@@ -51,7 +52,7 @@ class InputCallbacks:
 
     @staticmethod
     async def process_invoice_id(message: Message, widget: MessageInput, manager: DialogManager):
-        transaction_obj: TransactionModel = manager.dialog_data.get("transaction_obj")
+        transaction_obj = manager.dialog_data.get("transaction_obj")
         invoice_id = message.text
         if not message.text:
             return await message.answer("Потрібно додати номер транзакції до карти обов'язково!")
@@ -59,11 +60,11 @@ class InputCallbacks:
         if len(invoice_id) not in range(18, 25):
             return await message.answer("Скоріш за все це неправильний метод валідації!")
 
-        transaction_obj.invoice_id = invoice_id
-        transaction_obj.transaction_status = TransactionStatus.completed
+        transaction_obj["invoice_id"] = invoice_id
+        transaction_obj["transaction_status"] = TransactionStatus.completed
 
         await Transactions().save_transaction_data(
-            **transaction_obj.model_dump()
+            **transaction_obj
         ).do_request()
 
         await message.answer(
@@ -94,14 +95,14 @@ class ButtonCallbacksMoney:
 
         transaction_obj = TransactionModel(
             invoice_id="",
-            amount=amount,
+            amount=round(amount, 2),
             transaction_type=TransactionType.withdrawal,
             transaction_status=TransactionStatus.pending,
             receiver_id=receiver_id,
-            commission=commission
+            commission=round(commission, 2)
         )
 
-        manager.dialog_data["transaction_obj"] = transaction_obj
+        manager.dialog_data["transaction_obj"] = transaction_obj.model_dump(mode="json")
 
         await Withdrawals().update_withdrawal_request(
             request_id=request_id,
@@ -141,13 +142,13 @@ class ButtonCallbacksMoney:
 
     @staticmethod
     async def save_without_invoice_id(callback: CallbackQuery, button: Button, manager: DialogManager):
-        transaction_obj: TransactionModel = manager.dialog_data.get("transaction_obj")
+        transaction_obj = manager.dialog_data.get("transaction_obj")
         invoice_id = str(uuid1())
-        transaction_obj.invoice_id = invoice_id
-        transaction_obj.transaction_status = TransactionStatus.completed
+        transaction_obj["invoice_id"] = invoice_id
+        transaction_obj["transaction_status"] = TransactionStatus.completed
 
         await Transactions().save_transaction_data(
-            **transaction_obj.model_dump()
+            **transaction_obj
         ).do_request()
 
         await callback.message.answer(
@@ -197,7 +198,7 @@ class ButtonCallbacks:
             mode=StartMode.NORMAL,
             show_mode=ShowMode.SEND,
             data={
-                "users": users
+                "users": users.model_dump(mode="json")
             }
         )
 
@@ -206,7 +207,7 @@ class ButtonCallbacks:
         ticket = manager.dialog_data.get("ticket")
 
         await Tickets().update_ticket_status(
-            ticket_id=ticket.ticket_id,
+            ticket_id=ticket["ticket_id"],
             admin_id=callback.from_user.id,
             new_status=TicketStatus.closed
         ).do_request()
@@ -215,7 +216,7 @@ class ButtonCallbacks:
 
     @staticmethod
     async def accept_executor_application(callback: CallbackQuery, button: Button, manager: DialogManager):
-        applicant: ExecutorModel = manager.dialog_data.get("applicant")
+        applicant = ExecutorModel(**manager.dialog_data.get("applicant"))
 
         if applicant.profile_state == ProfileStatus.accepted:
             return await callback.message.answer(
@@ -237,7 +238,7 @@ class ButtonCallbacks:
 
     @staticmethod
     async def reject_executor_application(callback: CallbackQuery, button: Button, manager: DialogManager):
-        applicant: ExecutorModel = manager.dialog_data.get("applicant")
+        applicant = ExecutorModel(**manager.dialog_data.get("applicant"))
 
         if applicant:
             await Executors().update_executor_status(
@@ -253,7 +254,8 @@ class ButtonCallbacks:
 
     @staticmethod
     async def change_balance(callback: CallbackQuery, button: Button, manager: DialogManager):
-        user: UserResponse = manager.dialog_data.get("user")
+        user = manager.dialog_data.get("user")
+        print(user)
 
         await manager.start(
             state=ChangeUserBalance.change_balance,
@@ -267,7 +269,7 @@ class ButtonCallbacks:
     @staticmethod
     async def accept_new_balance(callback: CallbackQuery, button: Button, manager: DialogManager):
         new_amount = manager.dialog_data.get("new_balance")
-        user: UserResponse = manager.start_data.get("user")
+        user = UserResponse(**manager.start_data.get("user"))
 
         if new_amount is None:
             return await callback.message.answer(text="Щось не так з новим значенням балансу!")
@@ -281,7 +283,7 @@ class ButtonCallbacks:
 
     @staticmethod
     async def get_bans_management(callback: CallbackQuery, button: Button, manager: DialogManager):
-        user: UserResponse = manager.dialog_data.get("user")
+        user = manager.dialog_data.get("user")
 
         await manager.start(
             state=BanUser.main_window,
@@ -294,7 +296,7 @@ class ButtonCallbacks:
 
     @staticmethod
     async def get_transactions_file(callback: CallbackQuery, button: Button, manager: DialogManager):
-        user: UserResponse = manager.dialog_data.get("user")
+        user = UserResponse(**manager.dialog_data.get("user"))
         transactions = await Transactions().get_user_transactions(user.telegram_id).do_request()
         if isinstance(transactions, TransactionList):
             file = create_output_file(

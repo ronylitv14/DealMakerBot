@@ -43,7 +43,6 @@ async def start_admin_dialog(message: Message, dialog_manager: DialogManager):
     await dialog_manager.start(
         state=AdminPanel.main_panel,
         mode=StartMode.RESET_STACK,
-        show_mode=ShowMode.SEND
     )
 
 

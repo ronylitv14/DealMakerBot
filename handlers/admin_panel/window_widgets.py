@@ -25,7 +25,7 @@ async def on_application_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>На даний момент заявок немає!</b>", parse_mode="HTML")
 
-    applications: ExecutorsList = manager.start_data.get("applications")
+    applications = ExecutorsList(**manager.start_data.get("applications"))
     application: ExecutorModel = applications[int(item_id)]
 
     user: UserResponse = await Users().get_user_from_db(application.user_id).do_request()
@@ -36,7 +36,7 @@ async def on_application_selected(callback: CallbackQuery, widget: Any,
     manager.dialog_data["desc"] = application.description
     manager.dialog_data["username"] = user.username
     manager.dialog_data["tg_username"] = user.telegram_username
-    manager.dialog_data["applicant"] = application
+    manager.dialog_data["applicant"] = application.model_dump(mode="json")
 
     await manager.next()
     has_files = False
@@ -60,12 +60,12 @@ async def on_user_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>На даний момент користувачів немає!</b>", parse_mode="HTML")
 
-    users: UserResponseList = manager.start_data.get("users")
+    users = UserResponseList(**manager.start_data.get("users"))
     user: UserResponse = users[int(item_id)]
 
     balance: BalanceModel = await Balance().get_user_balance(user.telegram_id).do_request()
 
-    manager.dialog_data["user"] = user
+    manager.dialog_data["user"] = user.model_dump(mode="json")
     manager.dialog_data["username"] = user.username
     manager.dialog_data["tg_username"] = user.telegram_username
     manager.dialog_data["balance_amount"] = balance.balance_money
@@ -78,7 +78,7 @@ async def on_withdrawal_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>Немає нових запитів!</b>", parse_mode="HTML")
 
-    requests: WithdrawalRequestList = manager.start_data.get("requests")
+    requests = WithdrawalRequestList(**manager.start_data.get("requests"))
     request: WithdrawalRequestModel = requests[int(item_id)]
 
     balance: BalanceModel = await Balance().get_user_balance(request.user_id).do_request()
@@ -98,7 +98,7 @@ async def on_ticket_selected(callback: CallbackQuery, widget: Any,
     if item_id == "-1":
         return await callback.message.answer(text="<b>Немає нових тікетів!</b>", parse_mode="HTML")
 
-    tickets: TicketsList = manager.start_data.get("tickets")
+    tickets = TicketsList(**manager.start_data.get("tickets"))
     ticket: UserTicketModel = tickets[int(item_id)]
 
     if ticket.status == TicketStatus.closed:
@@ -110,7 +110,7 @@ async def on_ticket_selected(callback: CallbackQuery, widget: Any,
     manager.dialog_data["tg_username"] = user.telegram_username
     manager.dialog_data["subject"] = ticket.subject
     manager.dialog_data["desc"] = ticket.description
-    manager.dialog_data["ticket"] = ticket
+    manager.dialog_data["ticket"] = ticket.model_dump(mode="json")
 
     await manager.next()
 

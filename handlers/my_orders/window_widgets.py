@@ -22,7 +22,7 @@ async def on_order_selected(callback: CallbackQuery, widget: Any,
         return await callback.message.answer("Немає доступних замовлень!")
 
     user_type: UserType = manager.dialog_data.get("user_type")
-    orders: TasksList = manager.dialog_data.get("orders")
+    orders = TasksList(**manager.dialog_data.get("orders"))
     order: TaskModel = orders[int(item_id)]
 
     chats: ChatsList = await Chats().get_chats_by_task_id(

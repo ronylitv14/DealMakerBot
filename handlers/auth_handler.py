@@ -62,8 +62,6 @@ async def cancel_user_auth(message: types.Message, state: FSMContext):
 async def start_creating_executor_dialog(callback: types.CallbackQuery, state: FSMContext,
                                          dialog_manager: DialogManager, bot: Bot):
     await dialog_manager.start(state=CreatingProfile.adding_description, mode=StartMode.NORMAL)
-    dialog_manager.dialog_data["cur_state"] = ClientDialog.client_state
-    dialog_manager.dialog_data["state_obj"] = state
     dialog_manager.dialog_data["docs"] = []
     dialog_manager.dialog_data["type"] = []
 

@@ -1,3 +1,5 @@
+from uuid import uuid1
+
 from aiogram import types, F
 from aiogram.filters import or_f
 from aiogram.fsm.context import FSMContext
@@ -10,7 +12,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.enums import ChatType
 from handlers.states_handler import ClientDialog, ExecutorDialog
 
-from database_api.components.executors import Executors
+from database_api.components.executors import Executors, ExecutorModel
 from database_api.components.users import UserType
 
 from utils.dialog_categories import subject_titles
@@ -35,13 +37,11 @@ async def create_order(message: types.Message, dialog_manager: DialogManager, st
     )
     cur_state = await state.get_state()
 
-    await state.set_state(ClientDialog.creating_order)
-    await dialog_manager.start(OrderState.main, mode=StartMode.NORMAL)
-    dialog_manager.dialog_data["docs"] = []
+    await dialog_manager.start(OrderState.main, mode=StartMode.RESET_STACK)
     dialog_manager.dialog_data["subject_title"] = []
-    dialog_manager.dialog_data["type"] = []
-    dialog_manager.dialog_data["state_obj"] = state
+    # dialog_manager.dialog_data["state_obj"] = state
     dialog_manager.dialog_data["cur_state"] = cur_state
+    dialog_manager.dialog_data["unique_id"] = str(uuid1())
 
 
 @order_router.message(
@@ -64,10 +64,10 @@ async def get_my_orders(message: types.Message, state: FSMContext, dialog_manage
 
     await dialog_manager.start(MyOrders.main, mode=StartMode.RESET_STACK, show_mode=ShowMode.SEND)
 
-    dialog_manager.dialog_data["state_obj"] = state
     dialog_manager.dialog_data["cur_state"] = cur_state
     dialog_manager.dialog_data["user_type"] = UserType.executor if executor else UserType.client
-    dialog_manager.dialog_data["executor"] = executor
+    dialog_manager.dialog_data["executor"] = executor.model_dump(mode="json") if isinstance(executor,
+                                                                                            ExecutorModel) else None
 
 
 @order_router.inline_query()
@@ -75,7 +75,7 @@ async def inline_query_handler(inline_query: types.InlineQuery, state: FSMContex
     input_subject = inline_query.query
     cur_state = await state.get_state()
 
-    if cur_state == ClientDialog.creating_order and input_subject:
+    if cur_state == ClientDialog.client_state and input_subject:
         results = []
         # FIXME: Create more accurate code for comparing queries
 

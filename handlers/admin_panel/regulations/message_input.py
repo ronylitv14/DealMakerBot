@@ -8,18 +8,18 @@ from database_api.components.warnings_component import Warnings
 
 
 async def process_user_warning(message: Message, widget: MessageInput, manager: DialogManager):
-    user: UserResponse = manager.start_data.get("user")
+    user = manager.start_data.get("user")
     warning = message.text
 
     await Warnings().save_warning_data(
-        user_id=user.telegram_id,
+        user_id=user["telegram_id"],
         reason=warning,
         issued_by=message.from_user.id,
-        warning_count=user.warning_count
+        warning_count=user["warning_count"]
     ).do_request()
 
     await message.bot.send_message(
-        chat_id=user.telegram_id,
+        chat_id=user["telegram_id"],
         text="Вам було видано попередження!\n\n"
              f"Причина видачі: <i>{warning}</i>",
         parse_mode="HTML"

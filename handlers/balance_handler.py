@@ -32,8 +32,9 @@ async def run_balance_dialog(message: types.Message, state: FSMContext, dialog_m
         BalanceGroup.main_window,
         mode=StartMode.RESET_STACK,
         data={
+            # "balance": float(balance.balance_money)
             "balance": balance.balance_money
+
         }
     )
-    dialog_manager.dialog_data["state_object"] = state
     dialog_manager.dialog_data["cur_state"] = cur_state
