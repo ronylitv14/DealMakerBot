@@ -2,7 +2,7 @@ import decimal
 from typing import List, Optional
 
 from database_api.base import BaseAPI, HttpMethod
-from pydantic import BaseModel, condecimal
+from pydantic import BaseModel, condecimal, confloat
 import enum
 
 
@@ -14,7 +14,7 @@ class BalanceAction(enum.StrEnum):
 class BalanceModel(BaseModel):
     user_id: int
     user_cards: Optional[List]
-    balance_money: condecimal(max_digits=10, decimal_places=2)
+    balance_money: float
 
 
 class Balance(BaseAPI):
