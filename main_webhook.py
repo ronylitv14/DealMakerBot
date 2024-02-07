@@ -27,7 +27,8 @@ CHAT_BOT_TOKEN = os.getenv("CHAT_BOT_TOKEN")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = os.getenv("REDIS_PORT")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-REDIS_DB = os.getenv("REDIS_DB")
+REDIS_DEAL_DB = os.getenv("REDIS_DB")
+REDIS_CHAT_DB = os.getenv("REDIS_CHAT_DB")
 
 if not BOT_TOKEN or not CHAT_BOT_TOKEN:
     sys.exit("Please provide BOT_TOKEN and CHAT_BOT_TOKEN")
@@ -69,14 +70,18 @@ async def on_startup_chatbot(bot: Bot):
 
 
 def main():
-    redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+    redis_url_deal = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DEAL_DB}"
+    redis_url_chat = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CHAT_DB}"
+
     if REDIS_PASSWORD:
-        redis_url = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+        redis_url_deal = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DEAL_DB}"
+        redis_url_chat = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_CHAT_DB}"
 
-    memory_storage = RedisStorage.from_url(url=redis_url, key_builder=DefaultKeyBuilder(with_destiny=True))
+    deal_storage = RedisStorage.from_url(url=redis_url_deal, key_builder=DefaultKeyBuilder(with_destiny=True))
+    chat_storage = RedisStorage.from_url(url=redis_url_chat, key_builder=DefaultKeyBuilder(with_destiny=True))
 
-    dp_deal = Dispatcher(storage=memory_storage)
-    dp_chatbot = Dispatcher(storage=memory_storage)
+    dp_deal = Dispatcher(storage=deal_storage)
+    dp_chatbot = Dispatcher(storage=chat_storage)
 
     bot_deal = Bot(BOT_TOKEN, parse_mode=ParseMode.HTML)
     bot_chat = Bot(CHAT_BOT_TOKEN, parse_mode=ParseMode.HTML)
@@ -115,5 +120,4 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    print("Hello")
     main()

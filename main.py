@@ -2,6 +2,7 @@ import asyncio
 import os
 import sys
 
+from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 from dotenv import load_dotenv
 
 from aiogram import Dispatcher, Bot
@@ -18,7 +19,13 @@ load_dotenv("./.env")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_BOT_TOKEN = os.getenv("CHAT_BOT_TOKEN")
-# REDIS_URL = os.getenv("REDIS_URL")
+
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+
+REDIS_DEAL_DB = os.getenv("REDIS_DB")
+REDIS_CHAT_DB = os.getenv("REDIS_CHAT_DB")
 
 if not BOT_TOKEN:
     print("`BOT_TOKEN` was not specified!")
@@ -26,10 +33,22 @@ if not BOT_TOKEN:
 
 
 async def main():
-    memory_storage = MemoryStorage()
+    # memory_storage = MemoryStorage()
 
-    dp = Dispatcher(storage=memory_storage)
-    dp_chat = Dispatcher(storage=memory_storage)
+    redis_url_deal = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DEAL_DB}"
+    redis_url_chat = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CHAT_DB}"
+    if REDIS_PASSWORD:
+        redis_url_deal = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DEAL_DB}"
+        redis_url_chat = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_CHAT_DB}"
+
+    deal_storage = RedisStorage.from_url(
+        url=redis_url_deal,
+        key_builder=DefaultKeyBuilder(with_destiny=True),
+    )
+    chat_storage = RedisStorage.from_url(url=redis_url_chat, key_builder=DefaultKeyBuilder(with_destiny=True))
+
+    dp = Dispatcher(storage=deal_storage)
+    dp_chat = Dispatcher(storage=chat_storage)
 
     bot = Bot(token=BOT_TOKEN)
     chat_bot = Bot(token=CHAT_BOT_TOKEN)
@@ -61,7 +80,9 @@ async def main():
     await chat_bot.set_my_commands(chat_types_command)
     await asyncio.gather(
         dp.start_polling(bot),
-        dp_chat.start_polling(chat_bot)
+        dp_chat.start_polling(chat_bot),
+        bot.delete_webhook(),
+        chat_bot.delete_webhook()
     )
 
 
