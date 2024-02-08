@@ -26,7 +26,6 @@ from database_api.components.balance import Balance, BalanceAction
 async def watch_applications(retrieve_data_func, states_group, manager: DialogManager, data_name: str,
                              mode: StartMode = StartMode.NEW_STACK):
     applications = await retrieve_data_func.do_request()
-    print(applications)
     await manager.start(
         state=states_group.watch_applications,
         mode=mode,
@@ -198,7 +197,7 @@ class ButtonCallbacks:
             mode=StartMode.NORMAL,
             show_mode=ShowMode.SEND,
             data={
-                "users": users.model_dump(mode="json")
+                "users": users.model_dump(mode="json") if isinstance(users, UserResponseList) else None
             }
         )
 
