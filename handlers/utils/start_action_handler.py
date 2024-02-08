@@ -71,8 +71,8 @@ class HandleAction:
 
 
 class ProcessOrder:
-    def __init__(self, message: types.Message, task_id: int, dialog_manager: DialogManager,
-                 callback: Optional[types.CallbackQuery] = None):
+    def __init__(self, task_id: int, dialog_manager: DialogManager,
+                 callback: Optional[types.CallbackQuery] = None, message: Optional[types.Message] = None):
         self.message = message
         self.task_id = task_id
         self.manager = dialog_manager
@@ -81,9 +81,14 @@ class ProcessOrder:
     async def process_action(self):
         # TODO: Зробити так, щоб при повторному натиску кнопки викидало помилку про
         # вже взяте замовлення, або про те, що воно вже твоє
+        if not any((self.callback, self.message)):
+            raise ValueError
 
-        user_id = self.message.from_user.id
-        print(user_id)
+        user_id = None
+
+        if self.message:
+            user_id = self.message.from_user.id
+
         if self.callback:
             user_id = self.callback.from_user.id
         print(user_id)
