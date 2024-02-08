@@ -19,7 +19,7 @@ services:
       - ./DealMakerBot/admin_sessions:/app/admin_sessions
 
   redis:
-    image: "redis:alpine"
+    image: redis:7.2-alpine
     ports:
       - "6379:6379"
     command: ["redis-server", "--requirepass", "", "--databases", "10"]
@@ -27,7 +27,7 @@ services:
       - redis_data:/data
 
   postgres-db:
-    image: "postgres"
+    image: postgres:16.1-alpine3.18
     ports:
       - "5432:5432"
     environment:
@@ -35,7 +35,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD:
     volumes:
-      - postgres_data:/var/lib/postgresql/bot_data
+      - postgres_dealbot:/var/lib/postgresql/dealbot_data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -60,5 +60,5 @@ services:
       "
 
 volumes:
-  postgres_data:
+  postgres_dealbot:
   redis_data:
