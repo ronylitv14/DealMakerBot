@@ -34,7 +34,8 @@ if not BOT_TOKEN or not CHAT_BOT_TOKEN:
     sys.exit("Please provide BOT_TOKEN and CHAT_BOT_TOKEN")
 
 WEB_SERVER_HOST = "0.0.0.0"
-WEB_SERVER_PORT = 8080
+WEB_SERVER_PORT_DEAL = 8080
+WEB_SERVER_PORT_CHAT = 8082
 
 BASE_WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
@@ -116,8 +117,8 @@ def main():
     setup_dialogs(dp_deal)
     setup_dialogs(dp_chatbot)
 
-    web.run_app(app_chat, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
-    web.run_app(app_deal, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
+    web.run_app(app_deal, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT_DEAL)
+    web.run_app(app_chat, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT_CHAT)
 
 
 if __name__ == "__main__":
