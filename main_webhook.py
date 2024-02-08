@@ -34,8 +34,7 @@ if not BOT_TOKEN or not CHAT_BOT_TOKEN:
     sys.exit("Please provide BOT_TOKEN and CHAT_BOT_TOKEN")
 
 WEB_SERVER_HOST = "0.0.0.0"
-WEB_SERVER_PORT_DEAL = 8080
-WEB_SERVER_PORT_CHAT = 8082
+WEB_SERVER_PORT = 8080
 
 BASE_WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
@@ -70,6 +69,15 @@ async def on_startup_chatbot(bot: Bot):
     await bot.set_my_commands(chat_types_command)
 
 
+async def on_shutdown_deal(bot: Bot, dp: Dispatcher):
+
+    """
+    Graceful shutdown. This method is recommended by aiohttp docs.
+    """
+    # Remove webhook.
+    await bot.delete_webhook()
+    await dp.storage.close()
+
 def main():
     redis_url_deal = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DEAL_DB}"
     redis_url_chat = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CHAT_DB}"
@@ -100,25 +108,26 @@ def main():
     dp_deal.startup.register(on_startup_bot)
     dp_chatbot.startup.register(on_startup_chatbot)
 
-    app_deal = web.Application()
-    app_chat = web.Application()
+    dp_deal.shutdown.register(on_shutdown_deal)
+    dp_chatbot.shutdown.register(on_shutdown_deal)
+
+    app = web.Application()
 
     SimpleRequestHandler(
         dispatcher=dp_deal, bot=bot_deal, secret_token=WEBHOOK_SECRET_BOT,
-    ).register(app_deal, path=WEBHOOK_PATH_BOT)
+    ).register(app, path=WEBHOOK_PATH_BOT)
 
     SimpleRequestHandler(
         dispatcher=dp_chatbot, bot=bot_chat, secret_token=WEBHOOK_SECRET_CHATBOT
-    ).register(app_chat, path=WEBHOOK_PATH_CHATBOT)
+    ).register(app, path=WEBHOOK_PATH_CHATBOT)
 
-    setup_application(app_deal, dp_deal, bot=bot_deal)
-    setup_application(app_chat, dp_chatbot, bot=bot_chat)
+    setup_application(app, dp_deal, bot=bot_deal)
+    setup_application(app, dp_chatbot, bot=bot_chat)
 
     setup_dialogs(dp_deal)
     setup_dialogs(dp_chatbot)
 
-    web.run_app(app_deal, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT_DEAL)
-    web.run_app(app_chat, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT_CHAT)
+    web.run_app(app, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT, reuse_port=True, reuse_address=True)
 
 
 if __name__ == "__main__":
