@@ -58,7 +58,6 @@ async def get_instructions_client(message: types.Message, state: FSMContext):
 async def handle_taking_order(callback: types.CallbackQuery, bot: Bot, dialog_manager: DialogManager):
     action, task_id = callback.data.split("-")
     processor = ProcessOrder(
-        message=callback.message,
         task_id=int(task_id),
         dialog_manager=dialog_manager,
         callback=callback
