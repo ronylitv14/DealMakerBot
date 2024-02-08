@@ -99,23 +99,25 @@ def main():
     dp_deal.startup.register(on_startup_bot)
     dp_chatbot.startup.register(on_startup_chatbot)
 
-    app = web.Application()
+    app_deal = web.Application()
+    app_chat = web.Application()
 
     SimpleRequestHandler(
         dispatcher=dp_deal, bot=bot_deal, secret_token=WEBHOOK_SECRET_BOT,
-    ).register(app, path=WEBHOOK_PATH_BOT)
+    ).register(app_deal, path=WEBHOOK_PATH_BOT)
 
     SimpleRequestHandler(
         dispatcher=dp_chatbot, bot=bot_chat, secret_token=WEBHOOK_SECRET_CHATBOT
-    ).register(app, path=WEBHOOK_PATH_CHATBOT)
+    ).register(app_chat, path=WEBHOOK_PATH_CHATBOT)
 
-    setup_application(app, dp_deal, bot=bot_deal)
-    setup_application(app, dp_chatbot, bot=bot_chat)
+    setup_application(app_deal, dp_deal, bot=bot_deal)
+    setup_application(app_chat, dp_chatbot, bot=bot_chat)
 
     setup_dialogs(dp_deal)
     setup_dialogs(dp_chatbot)
 
-    web.run_app(app, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
+    web.run_app(app_chat, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
+    web.run_app(app_deal, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
 
 
 if __name__ == "__main__":
