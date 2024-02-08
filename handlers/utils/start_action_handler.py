@@ -105,7 +105,7 @@ class ProcessOrder:
             )
             return
 
-        if task.client_id == self.message.from_user.id:
+        if task.client_id == user_id:
             await self.message.answer(
                 text="<b>Ви не можете взяти власне замовлення</b>",
                 parse_mode="HTML"
