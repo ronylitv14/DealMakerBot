@@ -61,7 +61,7 @@ class TelegramInputs:
     )
 
     input_docs = MessageInput(
-        content_types=ContentType.ANY,
+        content_types=[ContentType.PHOTO, ContentType.DOCUMENT],
         func=ButtonCallbacks.preprocess_files_input
     )
 
