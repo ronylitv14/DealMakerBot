@@ -100,7 +100,6 @@ input_description_window = Window(
     TelegramInputs.input_desc,
     Row(
         TelegramBtns.btn_back,
-        TelegramBtns.btn_skip,
         TelegramBtns.btn_cancel
 
     ),
