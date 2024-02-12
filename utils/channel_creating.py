@@ -1,5 +1,6 @@
 import os
 import sys
+from copy import copy
 
 from aiogram import types, Bot
 from aiogram.methods import DeleteMessage
@@ -88,26 +89,42 @@ async def create_new_message_text(task_id: int, new_status: TaskStatus):
     return edited_msg, group_msg.group_message_id, group_msg.has_files
 
 
-async def create_channel_with_users(chname: str, chat_admin, *users):
-    async with TelegramClient(chat_admin, TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH) as client:
-        result: Updates = await client(
-            functions.messages.CreateChatRequest(
-                title=chname,
-                users=[*users]
-            )
-        )
+async def create_channel_with_users(chname: str, chat_admin: str, *users):
+    chat_admin_copy = copy(chat_admin)
 
-        await client(functions.messages.EditChatDefaultBannedRightsRequest(
-            peer=result.chats[0].id,
-            banned_rights=ChatBannedRights(
-                change_info=True,
-                until_date=None,
-                invite_users=True,
-                send_games=True
-            )
-        ))
+    admins_sessions = set(TELEGRAM_USER.copy())
+    admins_sessions.discard(chat_admin_copy)
 
-        return result.chats[0].id
+    admins_sessions = iter(admins_sessions)
+
+    while admins_sessions:
+        try:
+            async with TelegramClient(chat_admin_copy, TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH) as client:
+
+                result: Updates = await client(
+                    functions.messages.CreateChatRequest(
+                        title=chname,
+                        users=list(users)
+                    )
+                )
+
+                await client(functions.messages.EditChatDefaultBannedRightsRequest(
+                    peer=result.chats[0].id,
+                    banned_rights=ChatBannedRights(
+                        change_info=True,
+                        until_date=None,
+                        invite_users=True,
+                        send_games=True
+                    )
+                ))
+
+                return result.chats[0].id, chat_admin_copy
+        except Exception as err:
+            try:
+                chat_admin_copy = next(admins_sessions)
+            except StopIteration:
+                print("All admin sessions tried and failed.")
+                break
 
 
 async def change_chat_title(
@@ -231,7 +248,7 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
                                   desc_client: str = "", desc_executor: str = ""):
     group_name = f"Замовлення №{task_id}"
 
-    chat_id = await create_channel_with_users(
+    chat_id, chat_admin = await create_channel_with_users(
         group_name,
         chat_admin,
         BOT_URL,
