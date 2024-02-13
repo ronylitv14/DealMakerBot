@@ -71,7 +71,6 @@ async def compare_notification_time(db_chat_id: int, compare_time: int, pipe: Pi
 async def is_session_active(session_key, pipe: Pipeline):
     res = await pipe.get(session_key).execute()
     print(f"Result from is_session_active: {res[0].decode()}")
-    print(res[0].decode() == SessionStatus.active)
     return res[0].decode() == SessionStatus.active
 
 

@@ -9,7 +9,8 @@ from telethon import functions
 
 from keyboards.inline_keyboards import create_group_message_keyboard_telethon
 from telethon.types import Updates, ChatBannedRights
-from utils.redis_utils import deactivate_session
+from utils.redis_utils import deactivate_session, store_message_in_redis, construct_session_key
+from utils.dialog_texts import greetings_text
 
 from database_api.components.tasks import TaskStatus
 from database_api.components.group_messages import GroupMessages, GroupMessageResponse
@@ -244,6 +245,19 @@ async def send_bot_single_inline_message(
     )
 
 
+async def send_instructions_to_chat(bot: Bot, client_id: int, chat_id: int, db_chat_id: int):
+    instructions_msg = await bot.send_message(
+        chat_id=chat_id,
+        text=greetings_text,
+        parse_mode="HTML"
+    )
+
+    await store_message_in_redis(
+        construct_session_key(client_id, db_chat_id=db_chat_id),
+        instructions_msg
+    )
+
+
 async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: int, client_id: int, callback, bot,
                                   desc_client: str = "", desc_executor: str = ""):
     group_name = f"Замовлення №{task_id}"
@@ -298,8 +312,15 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
 
     msg_text_client = "За цим посиланням ви можете перейти до діалогу з виконавцем" if not desc_client else desc_client
 
+    await send_instructions_to_chat(
+        bot=bot,
+        client_id=client_id,
+        db_chat_id=new_chat.id,
+        chat_id=-chat_id
+    )
+
     await send_bot_single_inline_message(
-        chat_id=int(client_id),
+        chat_id=client_id,
         msg_text=msg_text_client,
         btn_text="Перейти до чату",
         url=f"{CHAT_BOT_URL}?start=chat-{new_chat.id}",
@@ -307,7 +328,7 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
     )
 
     await send_bot_single_inline_message(
-        chat_id=int(executor_id),
+        chat_id=executor_id,
         msg_text="За цим посиланням ви можете перейти до діалогу з клієнтом" if not desc_executor else desc_executor,
         btn_text="Перейти до чату",
         url=link,
