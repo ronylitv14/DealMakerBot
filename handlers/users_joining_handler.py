@@ -7,6 +7,7 @@ from aiogram.filters.chat_member_updated import ChatMemberUpdatedFilter, JOIN_TR
 from aiogram.enums import ChatType
 from aiogram.dispatcher.router import Router
 
+from utils.dialog_texts import greetings_text
 from utils.redis_utils import compare_notification_time, set_notification_time, is_session_active
 from database_api.components.chats import Chats, ChatModel
 
