@@ -81,7 +81,7 @@ async def create_chat(callback: types.CallbackQuery, bot: Bot, dialog_manager: D
 
     task: TaskModel = await Tasks().get_task_data(int(task_id)).do_request()
     if task.proposed_by != PropositionBy.public:
-        await Tasks().update_task_status(task.task_id, TaskStatus.executing)
+        await Tasks().update_task_status(task.task_id, TaskStatus.executing).do_request()
 
     try:
         return await check_existence_and_create_new_deal(
