@@ -75,11 +75,11 @@ async def is_session_active(session_key, pipe: Pipeline):
 
 
 @wrapper_for_redis_conn
-async def store_message_in_redis(session_key, message: Message, pipe: Pipeline):
+async def store_message_in_redis(session_key, message, pipe: Pipeline):
     message_data = {
         "type": message.content_type,
         "content": message.model_dump_json(exclude_none=True, indent=4),
-        "from_user_id": message.from_user.id
+        # "from_user_id": message.from_user.id
     }
     print(message_data)
 
@@ -99,7 +99,6 @@ async def send_stored_messages(session_key, bot, chat_id, pipe: Pipeline, ):
         while length_of_push > 0:
             message_data_json = await pipe.lpop(key).execute()
             message_data = json.loads(message_data_json[0])
-            print(message_data)
             length_of_push -= 1
             content_data = json.loads(message_data.get("content"))
 

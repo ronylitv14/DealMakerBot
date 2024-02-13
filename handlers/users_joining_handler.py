@@ -30,6 +30,14 @@ async def promote_executor_to_admin(event: ChatMemberUpdated):
 
     chat_obj: ChatModel = await Chats().get_chat_data(db_chat_id=int(db_chat_id)).do_request()
 
+    if event.from_user.id == chat_obj.executor_id:
+        instruction_msg = await event.bot.send_message(
+            chat_id=event.chat.id,
+            text=greetings_text,
+            parse_mode="HTML"
+        )
+        await instruction_msg.pin()
+
     if event.chat.type == ChatType.SUPERGROUP and chat_obj.chat_type == ChatType.GROUP:
         await Chats().update_chat_type(
             db_chat_id=chat_obj.id,
