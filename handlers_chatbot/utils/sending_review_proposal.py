@@ -2,7 +2,7 @@ import decimal
 
 from aiogram import Bot
 
-from database_api.components.tasks import TaskModel, Tasks
+from database_api.components.tasks import TaskModel, Tasks, TaskStatus
 from database_api.components.users import Users, UserResponse
 from utils.channel_creating import send_bot_message
 from keyboards.inline_keyboards import create_review_reply_markup, create_accept_offer_msg
@@ -19,6 +19,9 @@ async def send_accept_offer_msg(
         deal_chat: int
 ):
     task: TaskModel = await Tasks().get_task_data(task_id).do_request()
+
+    if task.status == TaskStatus.done:
+        return await bot.send_message(chat_id=chat_id, text="Це завдання вже підтверджене та оплачене!")
 
     task_msg = f"Номер чату {deal_chat}\n" + task.create_task_summary()
 
