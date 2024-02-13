@@ -75,6 +75,7 @@ negatives_window = Window(
 
 commentary_window = Window(
     Format(comment_text),
+    TelegramWidgets.input_comment,
     Row(
         create_back_button("Назад"),
         create_cancel_button("Вийти"),
