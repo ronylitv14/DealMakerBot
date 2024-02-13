@@ -14,13 +14,13 @@ async def create_keyboard_by_state(cur_state, dialog_manager: DialogManager):
             parse_mode="HTML"
         )
     elif cur_state == ExecutorDialog.executor_state:
-        await dialog_manager.event.message.answer(
+        await dialog_manager.event.answer(
             text="Обери наступну дію",
             reply_markup=create_keyboard_executor(),
             parse_mode="HTML"
         )
     else:
-        await dialog_manager.event.message.answer(
+        await dialog_manager.event.answer(
             text="Натискай /menu для продовження роботи!",
             reply_markup=ReplyKeyboardRemove()
         )
