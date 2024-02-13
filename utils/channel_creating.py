@@ -1,14 +1,18 @@
 import os
 import sys
+from pydantic import BaseModel
 from copy import copy
 
 from aiogram import types, Bot
 from aiogram.methods import DeleteMessage
+from aiogram.types import ContentType
+
 from telethon import TelegramClient
 from telethon import functions
 
 from keyboards.inline_keyboards import create_group_message_keyboard_telethon
 from telethon.types import Updates, ChatBannedRights
+
 from utils.redis_utils import deactivate_session, store_message_in_redis, construct_session_key
 from utils.dialog_texts import greetings_text
 
@@ -245,11 +249,15 @@ async def send_bot_single_inline_message(
     )
 
 
-async def send_instructions_to_chat(bot: Bot, client_id: int, chat_id: int, db_chat_id: int):
-    instructions_msg = await bot.send_message(
-        chat_id=chat_id,
-        text=greetings_text,
-        parse_mode="HTML"
+class CustomMessage(BaseModel):
+    content_type: ContentType
+    text: str
+
+
+async def send_instructions_to_chat(client_id: int, db_chat_id: int):
+    instructions_msg = CustomMessage(
+        content_type=ContentType.TEXT,
+        text=greetings_text
     )
 
     await store_message_in_redis(
@@ -313,10 +321,8 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
     msg_text_client = "За цим посиланням ви можете перейти до діалогу з виконавцем" if not desc_client else desc_client
 
     await send_instructions_to_chat(
-        bot=bot,
         client_id=client_id,
         db_chat_id=new_chat.id,
-        chat_id=-chat_id
     )
 
     await send_bot_single_inline_message(
