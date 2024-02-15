@@ -9,7 +9,9 @@ from aiogram_dialog.api.entities import StartMode
 
 from handlers_chatbot.paying_order.window_dialogs import create_offer_dialog
 from handlers_chatbot.paying_order.window_states import PriceOffer
-from handlers_chatbot.utils.sending_review_proposal import send_accept_offer_msg, send_review_proposal_to_participants
+from handlers_chatbot.utils.sending_review_proposal import send_review_proposal_to_participants
+
+from keyboards.inline_keyboards import send_accept_offer_msg
 
 from utils.channel_creating import edit_telegram_message, send_bot_message
 
