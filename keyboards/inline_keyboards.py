@@ -1,7 +1,8 @@
 import decimal
 import os
-from typing import Tuple
+from typing import Tuple, Optional
 
+from aiogram import Bot
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
 
 from telethon import Button
@@ -9,6 +10,7 @@ from telethon.types import ReplyInlineMarkup, KeyboardButtonRow
 from dotenv import load_dotenv
 
 from database_api.components.chats import ChatsList
+from database_api.components.tasks import TaskModel, Tasks, TaskStatus
 from database_api.components.users import UserType
 
 load_dotenv()
@@ -157,6 +159,22 @@ def create_chats_inline_kbd(chats: ChatsList, user_type: UserType):
     return builder.as_markup()
 
 
+def create_aiogram_dialog_urls(chats: ChatsList, user_type: UserType):
+    buttons = []
+
+    for ind, chat in enumerate(chats):
+        url = f"{CHAT_BOT_URL}?start=chat-{chat.id}" if user_type == UserType.client else chat.invite_link
+
+        buttons.append(
+            (
+                chat.group_name,
+                url,
+                ind + 1,
+            )
+        )
+    return buttons
+
+
 def create_accept_offer_msg(task_id: int, transaction_id: int, amount: decimal.Decimal, receiver_id: int):
     builder = InlineKeyboardBuilder()
 
@@ -168,3 +186,42 @@ def create_accept_offer_msg(task_id: int, transaction_id: int, amount: decimal.D
     )
 
     return builder.as_markup()
+
+
+async def send_accept_offer_msg(
+        bot: Bot,
+        transaction_id: int,
+        amount: decimal.Decimal,
+        receiver_id: int,
+        chat_id: int,
+        deal_chat: Optional[int] = None,
+        task_id: Optional[int] = None,
+        task: Optional[TaskModel] = None
+):
+    if task_id is None and task is None:
+        raise ValueError
+
+    if not task:
+        task: TaskModel = await Tasks().get_task_data(task_id).do_request()
+
+    if task.status == TaskStatus.done:
+        return await bot.send_message(chat_id=chat_id, text="Це завдання вже підтверджене та оплачене!")
+
+    task_msg = task.create_task_summary()
+    if deal_chat: task_msg = f"Номер чату: {deal_chat}\n" + task_msg
+
+    accept_msg = await bot.send_message(
+        chat_id=chat_id,
+        text=f"{task_msg}\n\nДане повідомлення призначення для того, щоб підтвердити успішне виконання завдання виконавцем."
+             " Зараз гроші знаходяться на утриманні, з Вашого балансу вони зняті, але ще не перераховані виконавцю! "
+             "При будь-яких проблемах звертайтеся до адміна або пишіть тікет за командою /ticket",
+        reply_markup=create_accept_offer_msg(
+            task_id=task.task_id,
+            transaction_id=transaction_id,
+            receiver_id=receiver_id,
+            amount=amount
+        )
+    )
+
+    return accept_msg
+
