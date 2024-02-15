@@ -84,12 +84,13 @@ class Transactions(BaseAPI):
             sender_id: int,
             receiver_id: int,
             task_id: Optional[int] = None,
-            transaction_type: Optional[TransactionType] = None
+            transaction_type: Optional[TransactionType] = None,
+            transaction_status: Optional[TransactionStatus] = None
     ):
         path = f"{self.component_path}/"
 
         ids_data = dict(sender_id=sender_id, receiver_id=receiver_id, task_id=task_id,
-                        transaction_type=transaction_type)
+                        transaction_type=transaction_type, transaction_status=transaction_status)
 
         ids_data = {k: v for k, v in ids_data.items() if v is not None}
 
