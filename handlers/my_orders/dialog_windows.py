@@ -13,7 +13,7 @@ from handlers.my_orders.window_widgets import (
 
 from handlers.my_orders.window_state import MyOrders
 from database_api.components.tasks import TasksList
-from database_api.components.transactions import Transactions, TransactionList, TransactionType
+from database_api.components.transactions import Transactions, TransactionList, TransactionType, TransactionStatus
 from keyboards.inline_keyboards import create_aiogram_dialog_urls
 
 
@@ -49,7 +49,8 @@ async def get_order_links(**kwargs):
         sender_id=task.client_id,
         receiver_id=task.executor_id,
         task_id=task.task_id,
-        transaction_type=TransactionType.transfer
+        transaction_type=TransactionType.transfer,
+        transaction_status=TransactionStatus.pending
     ).do_request()
 
     if isinstance(transaction, TransactionList):
