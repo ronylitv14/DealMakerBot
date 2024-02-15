@@ -2,6 +2,7 @@ from aiogram.types import CallbackQuery
 from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.dialog import DialogManager
 
+from database_api.components.transactions import TransactionModel
 from keyboards.clients import create_keyboard_client
 from keyboards.executors import create_keyboard_executor
 from handlers.states_handler import ClientDialog
@@ -11,6 +12,7 @@ from database_api.components.executors import Executors, ExecutorModel
 from database_api.components.tasks import Tasks, TaskStatus, TasksList
 
 from handlers.my_orders.window_state import MyOrders
+from keyboards.inline_keyboards import send_accept_offer_msg
 
 
 class ButtonCallbacks:
@@ -66,6 +68,19 @@ class ButtonCallbacks:
             await callback.message.answer(
                 text="На даний момент у вас немає виконаних замовлень"
             )
+
+    @staticmethod
+    async def create_accept_order_callback(callback: CallbackQuery, button: Button, manager: DialogManager):
+        transaction = manager.dialog_data.get("transaction")
+
+        await send_accept_offer_msg(
+            bot=callback.bot,
+            task_id=transaction["task_id"],
+            receiver_id=transaction["receiver_id"],
+            chat_id=transaction["sender_id"],
+            transaction_id=transaction["transaction_id"],
+            amount=transaction["amount"]
+        )
 
     @staticmethod
     async def cancel_dialog(callback: CallbackQuery, button: Button, manager: DialogManager):

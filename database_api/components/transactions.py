@@ -1,6 +1,8 @@
 import datetime
 import decimal
 from typing import Optional, List
+from urllib.parse import urlencode
+
 from database_api.base import BaseAPI, HttpMethod, APIListObject
 from pydantic import BaseModel, condecimal, ConfigDict
 import enum
@@ -74,5 +76,23 @@ class Transactions(BaseAPI):
 
     def get_user_transactions(self, user_id: int):
         url = f"{self.component_path}/{user_id}"
+        self.response_model = TransactionList
+        return self._construct_params(method=HttpMethod.GET, url=url)
+
+    def get_transaction_data(
+            self,
+            sender_id: int,
+            receiver_id: int,
+            task_id: Optional[int] = None,
+            transaction_type: Optional[TransactionType] = None
+    ):
+        path = f"{self.component_path}/"
+
+        ids_data = dict(sender_id=sender_id, receiver_id=receiver_id, task_id=task_id,
+                        transaction_type=transaction_type)
+
+        ids_data = {k: v for k, v in ids_data.items() if v is not None}
+
+        url = path + "?" + urlencode(ids_data)
         self.response_model = TransactionList
         return self._construct_params(method=HttpMethod.GET, url=url)
