@@ -7,12 +7,7 @@ from aiogram_dialog.dialog import DialogManager
 from aiogram_dialog.widgets.text import Const, Format, Case
 from aiogram_dialog.widgets.kbd import Button, ScrollingGroup, Select, Url, ListGroup, Cancel, Back
 
-from handlers.my_orders.button_callbacks import ButtonCallbacks
-from keyboards.inline_keyboards import create_chats_inline_kbd, create_aiogram_dialog_urls
-
-from database_api.components.tasks import Tasks, TaskModel, UserType, TasksList
-from database_api.components.chats import Chats, ChatsList
-
+from handlers.my_orders.button_callbacks import ButtonCallbacks, AcceptSuccessExecution
 
 
 async def on_order_selected(callback: CallbackQuery, widget: Any,
@@ -58,5 +53,8 @@ class TelegramBtns:
                                  on_click=ButtonCallbacks.get_finished_orders)
     btn_cancel = Button(Const("Вийти"), id="b_cancel", on_click=ButtonCallbacks.cancel_dialog)
     btn_accept_order = Button(Const("Підтвердження замовлення"), id="b_accept",
-                              on_click=ButtonCallbacks.create_accept_order_callback,
+                              on_click=ButtonCallbacks.navigate_to_acceptance_window,
                               when=F["dialog_data"]["has_accept_offer"])
+
+    btn_succeed_exec = Button(Const("Підтвердити"), id="b_succeed_exec",
+                              on_click=AcceptSuccessExecution.accept_success_execution_callback)
