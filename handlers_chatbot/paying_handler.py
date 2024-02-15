@@ -9,7 +9,7 @@ from aiogram_dialog.api.entities import StartMode
 
 from handlers_chatbot.paying_order.window_dialogs import create_offer_dialog
 from handlers_chatbot.paying_order.window_states import PriceOffer
-from handlers_chatbot.utils.sending_review_proposal import send_review_proposal_to_participants
+from utils.payments.offers import accept_success_execution
 
 from keyboards.inline_keyboards import send_accept_offer_msg
 
@@ -141,40 +141,11 @@ async def process_reject(callback: types.CallbackQuery, bot: Bot):
 async def accept_offer(callback: types.CallbackQuery, bot: Bot):
     action, transaction_id, task_id, amount, receiver_id = callback.data.split("|")
 
-    payment = await Payments().accept_offer(
-        transaction_id=int(transaction_id),
+    await accept_success_execution(
         task_id=int(task_id),
         receiver_id=int(receiver_id),
-    ).do_request()
-
-    if payment.is_error:
-        return await callback.answer("Неможливо зараз обробити цей запит! Можливо у вас не вистачає коштів!")
-
-    await callback.answer()
-
-    rounded_amount = round(decimal.Decimal(amount), 2)
-
-    await send_bot_message(
-        user_id=int(receiver_id),
-        msg=f"Вам надійшли кошти щодо завдання у розмірі: <b>{rounded_amount}</b> грн",
-    )
-
-    await bot.delete_message(
-        chat_id=callback.from_user.id,
-        message_id=callback.message.message_id
-    )
-
-    task: TaskModel = await Tasks().get_task_data(int(task_id)).do_request()
-
-    if task.proposed_by == PropositionBy.public:
-        await edit_telegram_message(
-            task_id=int(task_id),
-            new_status=TaskStatus.done,
-            is_active=False
-        )
-
-    await send_review_proposal_to_participants(
-        task_id=task.task_id,
-        client_id=task.client_id,
-        executor_id=task.executor_id
+        amount=amount,
+        transaction_id=int(transaction_id),
+        callback=callback,
+        bot=bot
     )

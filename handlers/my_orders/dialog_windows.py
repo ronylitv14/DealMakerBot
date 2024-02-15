@@ -1,8 +1,7 @@
 from aiogram_dialog.dialog import Dialog, DialogManager
-from aiogram.types import CallbackQuery
-from aiogram.fsm.context import FSMContext
+
 from aiogram_dialog.window import Window
-from aiogram_dialog.widgets.text import Const
+from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Back, Row
 
 from database_api.components.chats import ChatsList, Chats
@@ -107,10 +106,21 @@ order_details_window = Window(
     getter=get_order_links
 )
 
+accept_execution_window = Window(
+    Format("{dialog_data[task_msg]}"),
+    TelegramBtns.btn_succeed_exec,
+    Row(
+        Back(Const("Назад")),
+        TelegramBtns.btn_cancel,
+    ),
+    state=MyOrders.accept_task_execution
+)
+
 
 def create_my_orders_dialog():
     return Dialog(
         main_window,
         showing_orders_window,
-        order_details_window
+        order_details_window,
+        accept_execution_window
     )

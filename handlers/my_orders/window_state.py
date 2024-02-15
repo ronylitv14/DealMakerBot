@@ -6,3 +6,4 @@ class MyOrders(StatesGroup):
 
     watch_orders = State()
     order_details = State()
+    accept_task_execution = State()

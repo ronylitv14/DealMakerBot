@@ -9,10 +9,12 @@ from handlers.states_handler import ClientDialog
 
 from database_api.components.users import UserType
 from database_api.components.executors import Executors, ExecutorModel
-from database_api.components.tasks import Tasks, TaskStatus, TasksList
+from database_api.components.tasks import Tasks, TaskStatus, TasksList, TaskModel
 
 from handlers.my_orders.window_state import MyOrders
 from keyboards.inline_keyboards import send_accept_offer_msg
+from utils.dialog_texts import accept_execution_text
+from utils.payments.offers import accept_success_execution
 
 
 class ButtonCallbacks:
@@ -70,17 +72,11 @@ class ButtonCallbacks:
             )
 
     @staticmethod
-    async def create_accept_order_callback(callback: CallbackQuery, button: Button, manager: DialogManager):
-        transaction = manager.dialog_data.get("transaction")
+    async def navigate_to_acceptance_window(callback: CallbackQuery, button: Button, manager: DialogManager):
+        task = TaskModel(**manager.dialog_data.get("order"))
 
-        await send_accept_offer_msg(
-            bot=callback.bot,
-            task_id=transaction["task_id"],
-            receiver_id=transaction["receiver_id"],
-            chat_id=transaction["sender_id"],
-            transaction_id=transaction["transaction_id"],
-            amount=transaction["amount"]
-        )
+        manager.dialog_data["task_msg"] = task.create_task_summary() + f"\n\n{accept_execution_text}"
+        await manager.next()
 
     @staticmethod
     async def cancel_dialog(callback: CallbackQuery, button: Button, manager: DialogManager):
@@ -91,3 +87,21 @@ class ButtonCallbacks:
             text="Виходимо з режиму огляду замовлень",
             reply_markup=create_keyboard_client() if cur_state == ClientDialog.client_state else create_keyboard_executor()
         )
+
+
+class AcceptSuccessExecution:
+    @staticmethod
+    async def accept_success_execution_callback(callback: CallbackQuery, button: Button, manager: DialogManager):
+        task = manager.dialog_data.get("order")
+        transaction = manager.dialog_data.get("transaction")
+
+        await accept_success_execution(
+            callback=callback,
+            task_id=task["task_id"],
+            receiver_id=transaction["receiver_id"],
+            transaction_id=transaction["transaction_id"],
+            bot=callback.bot,
+            amount=transaction["amount"]
+        )
+
+        await manager.done()
