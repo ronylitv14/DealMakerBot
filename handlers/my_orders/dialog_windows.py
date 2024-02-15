@@ -5,7 +5,8 @@ from aiogram_dialog.window import Window
 from aiogram_dialog.widgets.text import Const
 from aiogram_dialog.widgets.kbd import Back, Row
 
-from database_api.components.tasks import TaskModel
+from database_api.components.chats import ChatsList, Chats
+from database_api.components.tasks import TaskModel, UserType
 from handlers.my_orders.window_widgets import (
     TelegramBtns,
     TelegramInputs
@@ -13,6 +14,8 @@ from handlers.my_orders.window_widgets import (
 
 from handlers.my_orders.window_state import MyOrders
 from database_api.components.tasks import TasksList
+from database_api.components.transactions import Transactions, TransactionList, TransactionType
+from keyboards.inline_keyboards import create_aiogram_dialog_urls
 
 
 def create_valid_button(task: TaskModel):
@@ -31,6 +34,41 @@ async def render_my_orders(**kwargs):
 
     return {
         "orders": updated_orders if updated_orders else [("У вас поки немає замовлень", -1)]
+    }
+
+
+async def get_order_links(**kwargs):
+    dialog_manager: DialogManager = kwargs.get("dialog_manager")
+    user_type: UserType = dialog_manager.dialog_data.get("user_type")
+    task = TaskModel(**dialog_manager.dialog_data.get("order"))
+
+    chats: ChatsList = await Chats().get_chats_by_task_id(
+        task_id=task.task_id
+    ).do_request()
+
+    transaction: TransactionList = await Transactions().get_transaction_data(
+        sender_id=task.client_id,
+        receiver_id=task.executor_id,
+        task_id=task.task_id,
+        transaction_type=TransactionType.transfer
+    ).do_request()
+
+    if isinstance(transaction, TransactionList):
+        dialog_manager.dialog_data["transaction"] = transaction[0].model_dump(mode="json")
+        dialog_manager.dialog_data["has_accept_offer"] = True
+
+    if not isinstance(chats, ChatsList):
+        dialog_manager.dialog_data["has_chats"] = False
+        return {
+            "urls": [("None", "https://youtube.com", -1)],
+        }
+
+    urls = create_aiogram_dialog_urls(chats, user_type)
+    dialog_manager.dialog_data["has_chats"] = True
+
+    return {
+        "urls": urls,
+
     }
 
 
@@ -56,9 +94,23 @@ showing_orders_window = Window(
     getter=render_my_orders
 )
 
+order_details_window = Window(
+    Const("Детальні дані щодо замовлення!"),
+    TelegramBtns.btn_accept_order,
+    TelegramInputs.list_chat_links,
+    Row(
+        Back(Const("Назад")),
+        TelegramBtns.btn_cancel,
+    ),
+    state=MyOrders.order_details,
+    parse_mode="HTML",
+    getter=get_order_links
+)
+
 
 def create_my_orders_dialog():
     return Dialog(
         main_window,
         showing_orders_window,
+        order_details_window
     )

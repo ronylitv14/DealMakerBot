@@ -5,3 +5,4 @@ class MyOrders(StatesGroup):
     main = State()
 
     watch_orders = State()
+    order_details = State()
