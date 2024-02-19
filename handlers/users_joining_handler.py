@@ -2,7 +2,8 @@ import os
 from dotenv import load_dotenv
 
 from aiogram import F, Bot
-from aiogram.types import Message, ChatMemberOwner
+from aiogram.types import Message, ChatMemberOwner, ChatMemberAdministrator
+from aiogram.methods.get_chat import GetChat
 from aiogram.filters import Command
 from aiogram.filters.chat_member_updated import ChatMemberUpdatedFilter, JOIN_TRANSITION, ChatMemberUpdated
 from aiogram.enums import ChatType
@@ -10,7 +11,7 @@ from aiogram.dispatcher.router import Router
 
 from database_api.components.executors import Executors
 from database_api.components.tasks import TaskModel, Tasks
-from filters.chat_filters import IsAdmin
+from filters.chat_filters import IsNotAdmin
 from utils.dialog_texts import greetings_text
 from utils.redis_utils import compare_notification_time, set_notification_time, is_session_active
 from database_api.components.chats import Chats, ChatModel
@@ -51,10 +52,12 @@ async def promote_executor_to_admin(event: ChatMemberUpdated):
 
 
 @joining_users_router.message(
-    Command("initialize")
+    Command("initialize"),
+    ~IsNotAdmin()
 )
 async def initialize_chat_data(message: Message, bot: Bot):
-    chat_desc = message.chat.description
+    chat_desc = await bot(GetChat(chat_id=message.chat.id))
+    chat_desc = chat_desc.description
     _, task_id = chat_desc.split("№")
 
     task: TaskModel = await Tasks().get_task_data(int(task_id)).do_request()
@@ -63,28 +66,30 @@ async def initialize_chat_data(message: Message, bot: Bot):
         chat_admin = "Random"
         executor_id = None
         member_count = await bot.get_chat_member_count(chat_id=message.chat.id)
+        admins = await bot.get_chat_administrators(message.chat.id)
+        chat_invite_link = await bot.create_chat_invite_link(message.chat.id)
 
         executors = await Executors().get_all_executors().do_request()
 
         for executor in executors:
-            is_chat_user = await message.chat.get_member(executor.telegram_id)
+            is_chat_user = await bot.get_chat_member(user_id=executor.telegram_id, chat_id=message.chat.id)
             if is_chat_user:
                 executor_id = executor.telegram_id
                 break
 
-        for member in message.chat.get_administrators():
-            if isinstance(member, ChatMemberOwner):
+        for member in admins:
+            if isinstance(member, (ChatMemberOwner, ChatMemberAdministrator)):
                 chat_admin = member.user.username
                 break
 
         await Chats().save_chat_data(
-            chat_id=message.chat.id,
+            chat_id=-message.chat.id,
             task_id=task.task_id,
             chat_admin=chat_admin,
             client_id=task.client_id,
             executor_id=executor_id,
             group_name=message.chat.title,
-            invite_link=message.chat.invite_link,
+            invite_link=chat_invite_link.invite_link,
             participants_count=member_count
         ).do_request()
 
@@ -95,7 +100,7 @@ async def initialize_chat_data(message: Message, bot: Bot):
 
 @joining_users_router.message(
     F.text,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 async def check_for_new_messages(message: Message, bot: Bot):
     # TODO: Add time limiting

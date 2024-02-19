@@ -4,7 +4,7 @@ from aiogram.enums import ChatType
 from aiogram.dispatcher.router import Router
 from aiogram.types.reply_parameters import ReplyParameters
 
-from filters.chat_filters import IsAdmin
+from filters.chat_filters import IsNotAdmin
 from utils.redis_utils import store_message_in_redis, is_session_active
 from database_api.components.chats import ChatModel, Chats
 
@@ -49,7 +49,7 @@ def construct_last_msg_key(chat_id: int):
 
 @chat_router.message(
     F.text,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 @get_chat_wrapper
 async def send_text_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -73,7 +73,7 @@ async def send_text_message(message: types.Message, bot: Bot, state: FSMContext,
 
 @chat_router.message(
     F.photo,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 @get_chat_wrapper
 async def send_photo_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -89,7 +89,7 @@ async def send_photo_message(message: types.Message, bot: Bot, state: FSMContext
 
 @chat_router.message(
     F.document,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 @get_chat_wrapper
 async def send_document_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -105,7 +105,7 @@ async def send_document_message(message: types.Message, bot: Bot, state: FSMCont
 
 @chat_router.message(
     F.audio,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 @get_chat_wrapper
 async def send_audio_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -121,7 +121,7 @@ async def send_audio_message(message: types.Message, bot: Bot, state: FSMContext
 
 @chat_router.message(
     F.voice,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 @get_chat_wrapper
 async def send_voice_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -137,7 +137,7 @@ async def send_voice_message(message: types.Message, bot: Bot, state: FSMContext
 
 @chat_router.message(
     F.sticker,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 @get_chat_wrapper
 async def send_sticker_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -153,7 +153,7 @@ async def send_sticker_message(message: types.Message, bot: Bot, state: FSMConte
 
 @chat_router.message(
     F.video,
-    ~IsAdmin()
+    IsNotAdmin()
 )
 @get_chat_wrapper
 async def send_sticker_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
