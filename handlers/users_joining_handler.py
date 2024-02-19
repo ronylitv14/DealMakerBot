@@ -10,6 +10,7 @@ from aiogram.dispatcher.router import Router
 
 from database_api.components.executors import Executors
 from database_api.components.tasks import TaskModel, Tasks
+from filters.chat_filters import IsAdmin
 from utils.dialog_texts import greetings_text
 from utils.redis_utils import compare_notification_time, set_notification_time, is_session_active
 from database_api.components.chats import Chats, ChatModel
@@ -92,7 +93,10 @@ async def initialize_chat_data(message: Message, bot: Bot):
         await message.answer("При новому ініціалізуванню чату сталась помилка!")
 
 
-@joining_users_router.message(F.text)
+@joining_users_router.message(
+    F.text,
+    ~IsAdmin()
+)
 async def check_for_new_messages(message: Message, bot: Bot):
     # TODO: Add time limiting
     print("We are now handling new message from executor")
