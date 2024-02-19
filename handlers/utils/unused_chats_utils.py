@@ -30,7 +30,6 @@ async def delete_user_from_chat(bot: Bot, chat: ChatModel):
         chat_id=chat_id,
         user_id=chat.executor_id
     )
-    print(executor)
 
     if isinstance(executor, ChatMemberLeft) or isinstance(executor, ChatMemberBanned):
         await Chats().update_chat_field(db_chat_id=chat.id, active=False, in_use=False).do_request()
@@ -95,7 +94,8 @@ async def add_new_user_to_chat(chat_model: ChatModel, bot: Bot, task_id: int, cl
     await change_chat_title(
         chat_id=chat_model.chat_id,
         chat_admin=chat_model.chat_admin,
-        chat_title=chat_title
+        chat_title=chat_title,
+        chat_desc=f"Номер замовлення №{task_id}"
     )
 
     await send_bot_single_inline_message(

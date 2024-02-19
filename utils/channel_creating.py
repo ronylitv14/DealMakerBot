@@ -141,7 +141,8 @@ async def create_channel_with_users(chname: str, chat_admin: str, task_id: int, 
 async def change_chat_title(
         chat_title: str,
         chat_id: int,
-        chat_admin: str = "admin"
+        chat_admin: str = "admin",
+        chat_desc: str = ""
 ):
     async with TelegramClient(chat_admin, TELEGRAM_APP_API_ID, TELEGRAM_APP_API_HASH) as client:
         await client(
@@ -150,6 +151,13 @@ async def change_chat_title(
                 title=chat_title
             )
         )
+        if chat_desc:
+            await client(
+                functions.messages.EditChatAboutRequest(
+                    peer=chat_id,
+                    about=chat_desc,
+                )
+            )
 
 
 async def add_admin_rights(
@@ -279,6 +287,7 @@ async def creating_chat_for_users(task_id: int, chat_admin: str, executor_id: in
     chat_id, chat_admin = await create_channel_with_users(
         group_name,
         chat_admin,
+        task_id,
         BOT_URL,
         CHAT_BOT_URL
     )
