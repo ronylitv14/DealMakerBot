@@ -1,7 +1,9 @@
 from aiogram import types, F, Bot
+from aiogram.filters import IS_ADMIN
 from aiogram.fsm.context import FSMContext
 from aiogram.enums import ChatType
 from aiogram.dispatcher.router import Router
+from aiogram.types.reply_parameters import ReplyParameters
 
 from utils.redis_utils import store_message_in_redis, is_session_active
 from database_api.components.chats import ChatModel, Chats
@@ -44,10 +46,10 @@ def get_chat_wrapper(func):
 def construct_last_msg_key(chat_id: int):
     return f"last_msg_id:{chat_id}"
 
-from aiogram.types.reply_parameters import ReplyParameters
 
 @chat_router.message(
-    F.text
+    F.text,
+    ~IS_ADMIN
 )
 @get_chat_wrapper
 async def send_text_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -70,7 +72,8 @@ async def send_text_message(message: types.Message, bot: Bot, state: FSMContext,
 
 
 @chat_router.message(
-    F.photo
+    F.photo,
+    ~IS_ADMIN
 )
 @get_chat_wrapper
 async def send_photo_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -85,7 +88,8 @@ async def send_photo_message(message: types.Message, bot: Bot, state: FSMContext
 
 
 @chat_router.message(
-    F.document
+    F.document,
+    ~IS_ADMIN
 )
 @get_chat_wrapper
 async def send_document_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -100,7 +104,8 @@ async def send_document_message(message: types.Message, bot: Bot, state: FSMCont
 
 
 @chat_router.message(
-    F.audio
+    F.audio,
+    ~IS_ADMIN
 )
 @get_chat_wrapper
 async def send_audio_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -115,7 +120,8 @@ async def send_audio_message(message: types.Message, bot: Bot, state: FSMContext
 
 
 @chat_router.message(
-    F.voice
+    F.voice,
+    ~IS_ADMIN
 )
 @get_chat_wrapper
 async def send_voice_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -130,7 +136,8 @@ async def send_voice_message(message: types.Message, bot: Bot, state: FSMContext
 
 
 @chat_router.message(
-    F.sticker
+    F.sticker,
+    ~IS_ADMIN
 )
 @get_chat_wrapper
 async def send_sticker_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
@@ -145,7 +152,8 @@ async def send_sticker_message(message: types.Message, bot: Bot, state: FSMConte
 
 
 @chat_router.message(
-    F.video
+    F.video,
+    ~IS_ADMIN
 )
 @get_chat_wrapper
 async def send_sticker_message(message: types.Message, bot: Bot, state: FSMContext, *args, **kwargs):
