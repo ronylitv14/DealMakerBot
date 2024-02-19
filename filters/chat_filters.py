@@ -4,9 +4,14 @@ from typing import Any, Union, Dict
 from aiogram.filters import BaseFilter
 
 
-class IsAdmin(BaseFilter):
+class IsNotAdmin(BaseFilter):
     async def __call__(self, message: Message, *args: Any, **kwargs: Any) -> Union[bool, Dict[str, Any]]:
-        member = message.chat.get_member(message.from_user.id)
-        if isinstance(member, (ChatMemberAdministrator, ChatMemberOwner)):
-            return True
-        return False
+        members = await message.bot.get_chat_administrators(chat_id=message.chat.id)
+        print(members)
+        print("Hello")
+        for member in members:
+            if isinstance(member, (ChatMemberAdministrator, ChatMemberOwner)):
+                return False
+
+        print("Have true")
+        return True
