@@ -94,7 +94,7 @@ async def create_new_message_text(task_id: int, new_status: TaskStatus):
     return edited_msg, group_msg.group_message_id, group_msg.has_files
 
 
-async def create_channel_with_users(chname: str, chat_admin: str, *users):
+async def create_channel_with_users(chname: str, chat_admin: str, task_id: int, *users):
     chat_admin_copy = copy(chat_admin)
 
     admins_sessions = set(TELEGRAM_USER.copy())
@@ -122,6 +122,12 @@ async def create_channel_with_users(chname: str, chat_admin: str, *users):
                         send_games=True
                     )
                 ))
+
+                await client(functions.messages.EditChatAboutRequest(
+                        peer=result.chats[0].id,
+                        about=f"Номер замовлення №{task_id}"
+                    )
+                )
 
                 return result.chats[0].id, chat_admin_copy
         except Exception as err:
