@@ -49,41 +49,6 @@ async def promote_executor_to_admin(event: ChatMemberUpdated):
         ).do_request()
 
 
-@joining_users_router.message(F.text)
-async def check_for_new_messages(message: Message, bot: Bot):
-    # TODO: Add time limiting
-    print("We are now handling new message from executor")
-    db_chat_id = message.chat.title.split("№")[-1]
-
-    chat_obj: ChatModel = await Chats().get_chat_data(db_chat_id=int(db_chat_id)).do_request()
-
-    session_key = f"session:{chat_obj.client_id}:{chat_obj.id}"
-
-    is_active = await is_session_active(
-        session_key
-    )
-
-    if message.from_user.id == chat_obj.executor_id and not is_active:
-
-        is_delayed = await compare_notification_time(
-            int(db_chat_id),
-            compare_time=5
-        )
-
-        if is_delayed:
-            print("Inside sending notifications!")
-            await bot.send_message(
-                chat_id=chat_obj.client_id,
-                text=f"<b>Вам прийшло нове повідомлення, щодо {chat_obj.group_name}!</b>\n\n"
-                     f"Перейдіть до чату через кнопку '<i>Мої замовлення</i>'",
-                parse_mode="HTML"
-            )
-
-            await set_notification_time(
-                int(db_chat_id)
-            )
-
-
 @joining_users_router.message(
     Command("initialize")
 )
@@ -125,3 +90,38 @@ async def initialize_chat_data(message: Message, bot: Bot):
     except Exception as err:
         print(err)
         await message.answer("При новому ініціалізуванню чату сталась помилка!")
+
+
+@joining_users_router.message(F.text)
+async def check_for_new_messages(message: Message, bot: Bot):
+    # TODO: Add time limiting
+    print("We are now handling new message from executor")
+    db_chat_id = message.chat.title.split("№")[-1]
+
+    chat_obj: ChatModel = await Chats().get_chat_data(db_chat_id=int(db_chat_id)).do_request()
+
+    session_key = f"session:{chat_obj.client_id}:{chat_obj.id}"
+
+    is_active = await is_session_active(
+        session_key
+    )
+
+    if message.from_user.id == chat_obj.executor_id and not is_active:
+
+        is_delayed = await compare_notification_time(
+            int(db_chat_id),
+            compare_time=5
+        )
+
+        if is_delayed:
+            print("Inside sending notifications!")
+            await bot.send_message(
+                chat_id=chat_obj.client_id,
+                text=f"<b>Вам прийшло нове повідомлення, щодо {chat_obj.group_name}!</b>\n\n"
+                     f"Перейдіть до чату через кнопку '<i>Мої замовлення</i>'",
+                parse_mode="HTML"
+            )
+
+            await set_notification_time(
+                int(db_chat_id)
+            )
